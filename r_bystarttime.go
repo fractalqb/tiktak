@@ -61,15 +61,17 @@ func (rep *byStartTimeReport) report(root *Task) {
 		return starts[i].Before(starts[j])
 	})
 	tbl := []tableCol{
+		tableCol{"↹", 1},
 		tableCol{"Start", 5},
 		tableCol{"Stop", 5},
 		tableCol{"Dur", 5},
 		tableCol{"Task", tpWidth},
 	}
 	wr := os.Stdout
-	fmt.Fprintln(wr, "TIMESPANS PER DAY:")
+	fmt.Fprintf(wr, "TIMESPANS PER DAY %s:\n", reportMonth(rep.now))
 	tableHead(wr, rPrefix, tbl...)
 	day := 0
+	var lastSpan *Span
 	for _, start := range starts {
 		thisDay := 100*start.Year() + start.YearDay()
 		if thisDay != day {
@@ -85,15 +87,31 @@ func (rep *byStartTimeReport) report(root *Task) {
 			for _, span := range task.Spans {
 				if span.Start == start {
 					tableStartRow(wr, rPrefix)
-					tableCell(wr, tbl[0].Width(), start.Format(clockFormat))
-					if span.Stop == nil {
-						tableCell(wr, tbl[1].Width(), "")
+					if lastSpan == nil {
+						tableCell(wr, tbl[0].Width(), "")
+						lastSpan = new(Span)
+						*lastSpan = span
 					} else {
-						tableCell(wr, tbl[1].Width(), span.Stop.Format(clockFormat))
+						is := IntersectSpans(lastSpan, &span)
+						d, fin := is.Duration(rep.now)
+						if !fin || d > 0 {
+							tableCell(wr, tbl[0].Width(), "⇸" /*↪"*/)
+						} else if span.Start.After(*lastSpan.Stop) {
+							tableCell(wr, tbl[0].Width(), "⇢")
+						} else {
+							tableCell(wr, tbl[0].Width(), "")
+						}
+						*lastSpan = span
+					}
+					tableCell(wr, tbl[1].Width(), start.Format(clockFormat))
+					if span.Stop == nil {
+						tableCell(wr, tbl[2].Width(), "")
+					} else {
+						tableCell(wr, tbl[2].Width(), span.Stop.Format(clockFormat))
 					}
 					dur, _ := span.Duration(rep.now)
-					tableCell(wr, tbl[2].Width(), hm(dur).String())
-					tableCell(wr, tbl[3].Width(), pathString(task.Path()))
+					tableCell(wr, tbl[3].Width(), hm(dur).String())
+					tableCell(wr, tbl[4].Width(), pathString(task.Path()))
 					fmt.Fprintln(wr)
 				}
 			}

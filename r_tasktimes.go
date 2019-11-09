@@ -40,12 +40,12 @@ func defaultOutput(wr io.Writer, root *Task, now time.Time, lang language.Tag) {
 			running[ct] = false
 		}
 	})
-	fmt.Println("TASK TIMES:")
+	fmt.Fprintf(wr, "TASK TIMES %s:\n", reportMonth(now))
 	tbl := []tableCol{tableCol{title: "⏲"}, tableCol{"Task", tpWidth}}
 	if titleWidth > 0 {
 		tbl = append(tbl, tableCol{"Title", titleWidth + 2})
 	}
-	tbl = append(tbl, tableCol{"All", 6}, tableCol{"Today", 5})
+	tbl = append(tbl, tableCol{"Today", 5}, tableCol{"All", 6})
 	tableHead(wr, rPrefix, tbl...)
 	tableHRule(wr, rPrefix, tbl...)
 	var sumAll, sumDay time.Duration
@@ -84,12 +84,12 @@ func defaultOutput(wr io.Writer, root *Task, now time.Time, lang language.Tag) {
 			d, _ = daySpan.Duration(now)
 			durDay += d
 		}
-		tableCell(wr, -tbl[2+colOff].Width(), hm(durAll).String())
 		if durDay > 0 {
-			tableCell(wr, -tbl[3+colOff].Width(), hm(durDay).String())
+			tableCell(wr, -tbl[2+colOff].Width(), hm(durDay).String())
 		} else {
-			tableCell(wr, tbl[3+colOff].Width(), "")
+			tableCell(wr, tbl[2+colOff].Width(), "")
 		}
+		tableCell(wr, -tbl[3+colOff].Width(), hm(durAll).String())
 		fmt.Fprintln(wr)
 		sumAll += durAll
 		sumDay += durDay
@@ -98,12 +98,12 @@ func defaultOutput(wr io.Writer, root *Task, now time.Time, lang language.Tag) {
 	tableStartRow(wr, rPrefix)
 	if titleWidth > 0 {
 		tableCell(wr, -tableColsWidth(tbl[:3]...), "Sum:")
-		tableCell(wr, -tbl[3].Width(), hm(sumAll).String())
-		tableCell(wr, -tbl[4].Width(), hm(sumDay).String())
+		tableCell(wr, -tbl[3].Width(), hm(sumDay).String())
+		tableCell(wr, -tbl[4].Width(), hm(sumAll).String())
 	} else {
 		tableCell(wr, -tableColsWidth(tbl[:2]...), "Sum:")
-		tableCell(wr, -tbl[2].Width(), hm(sumAll).String())
-		tableCell(wr, -tbl[3].Width(), hm(sumDay).String())
+		tableCell(wr, -tbl[2].Width(), hm(sumDay).String())
+		tableCell(wr, -tbl[3].Width(), hm(sumAll).String())
 	}
 	fmt.Fprintln(wr)
 	if runNo > 1 {

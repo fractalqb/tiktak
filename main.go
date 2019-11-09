@@ -145,49 +145,93 @@ func (d hm) String() string {
 	return sb.String()
 }
 
-func startKnown(t time.Time, root *Task, pat []string) {
-	var selected *Task
-	root.WalkAll(nil, func(tp []*Task, nmp []string) {
+func findPath(root *Task, pat []string) (res *Task, err error) {
+	root.Walk(nil, func(tp []*Task, nmp []string) bool {
 		if len(nmp) > 0 {
 			if PathMatch(nmp[1:], pat) {
-				if selected != nil {
-					log.Fatalf("task pattern '%s' is ambiguous", pathString(pat))
+				if res != nil {
+					res = nil
+					err = fmt.Errorf(
+						"task pattern '%s' is ambiguous",
+						pathString(pat))
+					return true
 				}
-				selected = tp[len(tp)-1]
+				res = tp[len(tp)-1]
 			}
 		}
+		return false
 	})
+	return res, err
+}
+
+func startKnown(t time.Time, root *Task, pat []string) {
+	selected, err := findPath(root, pat)
+	if err != nil {
+		log.Fatal(err)
+	}
 	if selected == nil {
 		log.Fatalf("no task matches '%s'", pathString(pat))
 	}
 	selected.Start(t)
 }
 
-const usrTimeFmt = "2006-01-02T15:04"
+func reportMonth(t time.Time) string {
+	return t.Format("01/2006")
+}
+
+func parseTime(tstr string) time.Time {
+	if tstr == "" {
+		return time.Now().Round(time.Second)
+	}
+	t, err := time.ParseInLocation("2006-01-02T15:04", tstr, time.Local)
+	if err == nil {
+		return t
+	}
+	t, err = time.ParseInLocation("15:04", tstr, time.Local)
+	if err == nil {
+		n := time.Now()
+		return time.Date(
+			n.Year(), n.Month(), n.Day(),
+			t.Hour(), t.Minute(), n.Second(),
+			0, n.Location())
+	}
+	t, err = time.ParseInLocation("01/2006", tstr, time.Local)
+	if err != nil {
+		log.Fatal(err)
+	}
+	n := time.Now()
+	return time.Date(
+		t.Year(), t.Month(),
+		n.Day(), n.Hour(), n.Minute(), n.Second(),
+		0, n.Location())
+}
 
 func main() {
-	flag.StringVar(&dataFileNm, "f", "", `explicitly choose data file
-When not explicitly selected tiktok will look in the directory
-given in the `+envDDir+` environment variable.`)
-	flag.DurationVar(&microGap, "ugap", time.Minute, "length of µ-gap")
-	flag.StringVar(&flagLang, "lang", "", "select language")
-	flag.StringVar(&timeFmt, "d", "hm", "select format for durations: hm, hf")
-	stop := flag.Bool("stop", false, "stop all running clocks")
-	printFile := flag.Bool("print-file", false, "print data file name")
-	byPath := flag.Bool("p", false, "select or create complete path")
-	flagNow := flag.String("t", "", "set current time for operation; format "+usrTimeFmt)
-	report := flag.String("r", "", "select report: "+strings.Join(reportNames(), ", "))
+	flag.StringVar(&dataFileNm, "f", "",
+		`explicitly choose data file.
+When not explicitly selected tiktok will look in the directory given
+in the `+envDDir+` environment variable.`)
+	flag.DurationVar(&microGap, "ugap", time.Minute,
+		`length of µ-gap`)
+	flag.StringVar(&flagLang, "lang", "",
+		`select language`)
+	flag.StringVar(&timeFmt, "d", "hm",
+		`select format for durations: hm, hf`)
+	stop := flag.Bool("stop", false,
+		`stop all running clocks`)
+	printFile := flag.Bool("print-file", false,
+		`print data file name`)
+	flagNow := flag.String("t", "",
+		`Set current time for operation. Missing elements are taken from now().
+Formats:
+ - yyyy-mm-ddTHH:MM
+ - mm/yyyy
+ - HH:MM`)
+	//title := flag.String("title", "", "set task's title")
+	report := flag.String("r", "",
+		`select report: `+strings.Join(reportNames(), ", "))
 	flag.Parse()
-	var t time.Time
-	if *flagNow == "" {
-		t = time.Now().Truncate(time.Second)
-	} else {
-		var err error
-		t, err = time.Parse(usrTimeFmt, *flagNow)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+	t := parseTime(*flagNow)
 	if *printFile {
 		fmt.Println(dataFile(t))
 		return
@@ -199,27 +243,32 @@ given in the `+envDDir+` environment variable.`)
 		lang = language.Make(os.Getenv("LANG"))
 	}
 	root := loadTasks(t)
-	if *stop {
+	switch {
+	case *stop:
 		root.WalkAll(nil, CloseOpenSpans{t}.Do)
 		saveTasks(dataFile(t), root)
-		return
-	}
-	switch {
 	case *report != "":
 		rep := reports[*report](t, lang, flag.Args())
 		rep(root)
 	case len(flag.Args()) == 0:
 		defaultOutput(os.Stdout, root, t, lang)
-	case len(flag.Args()) == 1 && flag.Arg(0) == "/":
-		root.WalkAll(nil, CloseOpenSpans{t}.Do)
-		root.Start(t)
 	default:
-		if *byPath {
+		if len(flag.Args()) != 1 {
+			log.Fatal("cannot start more than one task")
+		}
+		pstr := strings.TrimSpace(flag.Arg(0))
+		switch {
+		case pstr == "" || pstr == "/":
 			root.WalkAll(nil, CloseOpenSpans{t}.Do)
-			root.Get(flag.Args()...).Start(t)
-		} else {
+			root.Start(t)
+		case pstr[0] == '/':
 			root.WalkAll(nil, CloseOpenSpans{t}.Do)
-			startKnown(t, root, flag.Args())
+			path := strings.Split(pstr, "/")
+			root.Get(path[1:]...).Start(t)
+		default:
+			root.WalkAll(nil, CloseOpenSpans{t}.Do)
+			path := strings.Split(pstr, "/")
+			startKnown(t, root, path)
 		}
 	}
 	saveTasks(dataFile(t), root)
