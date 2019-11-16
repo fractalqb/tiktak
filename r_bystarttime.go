@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"time"
@@ -16,12 +17,13 @@ func init() {
 	reports["spans"] = byStartTimeFactory
 }
 
-func byStartTimeFactory(now time.Time, lang language.Tag, args []string) func(*Task) {
-	r := byStartTimeReport{
-		now:  now,
+func byStartTimeFactory(lang language.Tag, args []string) Reporter {
+	r := &byStartTimeReport{
+		wr:   os.Stdout,
+		tw:   borderedWriter{os.Stdout, rPrefix},
 		coll: collate.New(lang),
 	}
-	return r.report
+	return r
 }
 
 func appendUniqeTask(ts []*Task, t *Task) []*Task {
@@ -34,11 +36,12 @@ func appendUniqeTask(ts []*Task, t *Task) []*Task {
 }
 
 type byStartTimeReport struct {
-	now  time.Time
+	wr   io.Writer
+	tw   tableWriter
 	coll *collate.Collator
 }
 
-func (rep *byStartTimeReport) report(root *Task) {
+func (rep *byStartTimeReport) Generate(root *Task, now time.Time) {
 	var starts []time.Time
 	t2ts := make(map[time.Time][]*Task)
 	var tpWidth int
@@ -68,7 +71,7 @@ func (rep *byStartTimeReport) report(root *Task) {
 		tableCol{"Task", tpWidth},
 	}
 	tw := borderedWriter{os.Stdout, rPrefix}
-	fmt.Fprintf(tw.wr, "TIMESPANS PER DAY %s:\n", reportMonth(rep.now))
+	fmt.Fprintf(tw.wr, "TIMESPANS PER DAY %s:\n", reportMonth(now))
 	tw.Head(tbl...)
 	day := 0
 	var lastSpan *Span
@@ -93,7 +96,7 @@ func (rep *byStartTimeReport) report(root *Task) {
 						*lastSpan = span
 					} else {
 						is := IntersectSpans(lastSpan, &span)
-						d, fin := is.Duration(rep.now)
+						d, fin := is.Duration(now)
 						if !fin || d > 0 {
 							tw.Cell(tbl[0].Width(), "⇸" /*↪"*/)
 						} else if span.Start.After(*lastSpan.Stop) {
@@ -109,7 +112,7 @@ func (rep *byStartTimeReport) report(root *Task) {
 					} else {
 						tw.Cell(tbl[2].Width(), span.Stop.Format(clockFormat))
 					}
-					dur, _ := span.Duration(rep.now)
+					dur, _ := span.Duration(now)
 					tw.Cell(tbl[3].Width(), hm(dur).String())
 					tw.Cell(tbl[4].Width(), pathString(task.Path()))
 					fmt.Fprintln(tw.wr)

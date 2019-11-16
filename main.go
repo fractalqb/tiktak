@@ -34,7 +34,11 @@ func reportNames() (res []string) {
 	return res
 }
 
-type reportFactory func(now time.Time, lang language.Tag, args []string) func(*Task)
+type reportFactory func(lang language.Tag, args []string) Reporter
+
+type Reporter interface {
+	Generate(root *Task, now time.Time)
+}
 
 func pathString(p []string) string {
 	switch len(p) {
@@ -248,10 +252,14 @@ Formats:
 		root.WalkAll(nil, CloseOpenSpans{t}.Do)
 		saveTasks(dataFile(t), root)
 	case *report != "":
-		rep := reports[*report](t, lang, flag.Args())
-		rep(root)
+		rep := reports[*report](lang, flag.Args())
+		rep.Generate(root, t)
 	case len(flag.Args()) == 0:
-		defaultOutput(os.Stdout, root, t, lang)
+		TaskTimes{
+			wr: os.Stdout,
+			tw: borderedWriter{os.Stdout, rPrefix},
+			// tw: csvWriter{wr: os.Stdout, sep: ';'},
+		}.Generate(root, t, lang)
 	default:
 		if len(flag.Args()) != 1 {
 			log.Fatal("cannot start more than one task")

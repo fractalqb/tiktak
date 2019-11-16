@@ -27,6 +27,8 @@ func colsWidth(tw tableWriter, cols ...tableCol) int {
 	return tw.SpanWidth(ws...)
 }
 
+type tabWriterFactory func(wr io.Writer, prefix string) tableWriter
+
 type tableWriter interface {
 	Head(cols ...tableCol)
 	HRule(cols ...tableCol)
@@ -92,6 +94,45 @@ func (tw borderedWriter) SpanWidth(widths ...int) int {
 	res := widths[0] + widths[l-1] + 3
 	for _, w := range widths[1 : l-1] {
 		res += w + 3
+	}
+	return res
+}
+
+type csvWriter struct {
+	wr    io.Writer
+	sep   rune
+	cell1 bool
+}
+
+var _ tableWriter = csvWriter{}
+
+func (tw csvWriter) Head(cols ...tableCol) {
+	if len(cols) == 0 {
+		return
+	}
+	fmt.Fprint(tw.wr, cols[0].title)
+	for _, col := range cols[1:] {
+		fmt.Fprintf(tw.wr, "%c%s", tw.sep, col.title)
+	}
+	fmt.Fprintln(tw.wr)
+}
+
+func (tw csvWriter) HRule(cols ...tableCol) {}
+
+func (tw csvWriter) StartRow() { tw.cell1 = true }
+
+func (tw csvWriter) Cell(width int, text string) {
+	if !tw.cell1 {
+		fmt.Fprintf(tw.wr, "%c", tw.sep)
+		tw.cell1 = false
+	}
+	fmt.Fprint(tw.wr, text)
+}
+
+func (tw csvWriter) SpanWidth(widths ...int) int {
+	res := 0
+	for _, w := range widths {
+		res += w
 	}
 	return res
 }

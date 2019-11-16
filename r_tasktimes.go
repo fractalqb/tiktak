@@ -10,7 +10,12 @@ import (
 	"golang.org/x/text/language"
 )
 
-func defaultOutput(wr io.Writer, root *Task, now time.Time, lang language.Tag) {
+type TaskTimes struct {
+	wr io.Writer
+	tw tableWriter
+}
+
+func (rep TaskTimes) Generate(root *Task, now time.Time, lang language.Tag) {
 	coll := collate.New(lang)
 	var tpWidth, titleWidth int
 	runNo := 0
@@ -39,34 +44,33 @@ func defaultOutput(wr io.Writer, root *Task, now time.Time, lang language.Tag) {
 			running[ct] = false
 		}
 	})
-	fmt.Fprintf(wr, "TASK TIMES %s:\n", reportMonth(now))
+	fmt.Fprintf(rep.wr, "TASK TIMES %s:\n", reportMonth(now))
 	tbl := []tableCol{tableCol{title: "⏲"}, tableCol{"Task", tpWidth}}
 	if titleWidth > 0 {
 		tbl = append(tbl, tableCol{"Title", titleWidth + 2})
 	}
 	tbl = append(tbl, tableCol{"Today", 5}, tableCol{"All", 6})
-	tw := borderedWriter{wr, rPrefix}
-	tw.Head(tbl...)
-	tw.HRule(tbl...)
+	rep.tw.Head(tbl...)
+	rep.tw.HRule(tbl...)
 	var sumAll, sumDay time.Duration
 	root.WalkAll(coll, func(tp []*Task, nmp []string) {
 		ct := tp[len(tp)-1]
 		if len(ct.Spans) == 0 {
 			return
 		}
-		tw.StartRow()
+		rep.tw.StartRow()
 		if running[ct] {
-			tw.Cell(tbl[0].Width(), "↻")
+			rep.tw.Cell(tbl[0].Width(), "↻")
 		} else {
-			tw.Cell(tbl[0].Width(), " ")
+			rep.tw.Cell(tbl[0].Width(), " ")
 		}
-		tw.Cell(tbl[1].Width(), pathString(nmp))
+		rep.tw.Cell(tbl[1].Width(), pathString(nmp))
 		colOff := 0
 		if titleWidth > 0 {
 			if ct.Title == "" {
-				tw.Cell(tbl[2].Width(), "")
+				rep.tw.Cell(tbl[2].Width(), "")
 			} else {
-				tw.Cell(tbl[2].Width(), `"`+ct.Title+`"`)
+				rep.tw.Cell(tbl[2].Width(), `"`+ct.Title+`"`)
 			}
 			colOff = 1
 		}
@@ -85,27 +89,27 @@ func defaultOutput(wr io.Writer, root *Task, now time.Time, lang language.Tag) {
 			durDay += d
 		}
 		if durDay > 0 {
-			tw.Cell(-tbl[2+colOff].Width(), hm(durDay).String())
+			rep.tw.Cell(-tbl[2+colOff].Width(), hm(durDay).String())
 		} else {
-			tw.Cell(tbl[2+colOff].Width(), "")
+			rep.tw.Cell(tbl[2+colOff].Width(), "")
 		}
-		tw.Cell(-tbl[3+colOff].Width(), hm(durAll).String())
-		fmt.Fprintln(wr)
+		rep.tw.Cell(-tbl[3+colOff].Width(), hm(durAll).String())
+		fmt.Fprintln(rep.wr)
 		sumAll += durAll
 		sumDay += durDay
 	})
-	tw.HRule(tbl...)
-	tw.StartRow()
+	rep.tw.HRule(tbl...)
+	rep.tw.StartRow()
 	if titleWidth > 0 {
-		tw.Cell(-colsWidth(tw, tbl[:3]...), "Sum:")
-		tw.Cell(-tbl[3].Width(), hm(sumDay).String())
-		tw.Cell(-tbl[4].Width(), hm(sumAll).String())
+		rep.tw.Cell(-colsWidth(rep.tw, tbl[:3]...), "Sum:")
+		rep.tw.Cell(-tbl[3].Width(), hm(sumDay).String())
+		rep.tw.Cell(-tbl[4].Width(), hm(sumAll).String())
 	} else {
-		tw.Cell(-colsWidth(tw, tbl[:2]...), "Sum:")
-		tw.Cell(-tbl[2].Width(), hm(sumDay).String())
-		tw.Cell(-tbl[3].Width(), hm(sumAll).String())
+		rep.tw.Cell(-colsWidth(rep.tw, tbl[:2]...), "Sum:")
+		rep.tw.Cell(-tbl[2].Width(), hm(sumDay).String())
+		rep.tw.Cell(-tbl[3].Width(), hm(sumAll).String())
 	}
-	fmt.Fprintln(wr)
+	fmt.Fprintln(rep.wr)
 	if runNo > 1 {
 		fmt.Printf("\n%s%d RUNNING TASKS\n", rPrefix, runNo)
 	}
