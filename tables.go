@@ -19,40 +19,69 @@ func (tc tableCol) Width() int {
 	return tc.width
 }
 
-func tableHRule(wr io.Writer, prefix string, cols ...tableCol) {
-	fmt.Fprint(wr, prefix, "+")
+func colsWidth(tw tableWriter, cols ...tableCol) int {
+	ws := make([]int, len(cols))
+	for i, c := range cols {
+		ws[i] = c.Width()
+	}
+	return tw.SpanWidth(ws...)
+}
+
+type tableWriter interface {
+	Head(cols ...tableCol)
+	HRule(cols ...tableCol)
+	StartRow()
+	Cell(width int, text string)
+	SpanWidth(widths ...int) int
+}
+
+type borderedWriter struct {
+	wr     io.Writer
+	prefix string
+}
+
+func (tw borderedWriter) Head(cols ...tableCol) {
+	tw.StartRow()
+	for _, c := range cols {
+		tw.Cell(c.Width(), c.title)
+	}
+	fmt.Fprintln(tw.wr)
+}
+
+func (tw borderedWriter) HRule(cols ...tableCol) {
+	fmt.Fprint(tw.wr, tw.prefix, "+")
 	for _, c := range cols {
 		w := c.Width()
-		fmt.Fprint(wr, strings.Repeat("-", w+2))
-		fmt.Fprint(wr, "+")
+		fmt.Fprint(tw.wr, strings.Repeat("-", w+2))
+		fmt.Fprint(tw.wr, "+")
 	}
-	fmt.Fprintln(wr)
+	fmt.Fprintln(tw.wr)
 }
 
-func tableStartRow(wr io.Writer, prefix string) {
-	fmt.Fprint(wr, prefix, "|")
+func (tw borderedWriter) StartRow() {
+	fmt.Fprint(tw.wr, tw.prefix, "|")
 }
 
-func tableCell(wr io.Writer, width int, text string) {
+func (tw borderedWriter) Cell(width int, text string) {
 	algr := width < 0
 	if algr {
 		width = -width
 	}
 	str := []rune(text)
-	wr.Write([]byte{' '})
+	tw.wr.Write([]byte{' '})
 	if len(str) > width {
-		fmt.Fprint(wr, string(str[:width-1])+"…")
+		fmt.Fprint(tw.wr, string(str[:width-1])+"…")
 	} else if algr {
-		fmt.Fprint(wr, strings.Repeat(" ", width-len(str)))
-		fmt.Fprint(wr, text)
+		fmt.Fprint(tw.wr, strings.Repeat(" ", width-len(str)))
+		fmt.Fprint(tw.wr, text)
 	} else {
-		fmt.Fprint(wr, text)
-		fmt.Fprint(wr, strings.Repeat(" ", width-len(str)))
+		fmt.Fprint(tw.wr, text)
+		fmt.Fprint(tw.wr, strings.Repeat(" ", width-len(str)))
 	}
-	fmt.Fprintf(wr, " |")
+	fmt.Fprintf(tw.wr, " |")
 }
 
-func tableSpanWidth(widths ...int) int {
+func (tw borderedWriter) SpanWidth(widths ...int) int {
 	l := len(widths)
 	switch l {
 	case 0:
@@ -65,20 +94,4 @@ func tableSpanWidth(widths ...int) int {
 		res += w + 3
 	}
 	return res
-}
-
-func tableColsWidth(cols ...tableCol) int {
-	ws := make([]int, len(cols))
-	for i, c := range cols {
-		ws[i] = c.Width()
-	}
-	return tableSpanWidth(ws...)
-}
-
-func tableHead(wr io.Writer, prefix string, cols ...tableCol) {
-	tableStartRow(wr, prefix)
-	for _, c := range cols {
-		tableCell(wr, c.Width(), c.title)
-	}
-	fmt.Fprintln(wr)
 }

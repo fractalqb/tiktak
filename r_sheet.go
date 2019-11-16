@@ -62,7 +62,6 @@ func (rep *timeSheetReport) accountOn(t *Task) string {
 }
 
 func (rep *timeSheetReport) report(root *Task) {
-	var wr = os.Stdout
 	days := allDays(root)
 	tbl := []tableCol{
 		tableCol{"Day", utf8.RuneCountInString(dateFormat)},
@@ -82,12 +81,13 @@ func (rep *timeSheetReport) report(root *Task) {
 	var starts, stops int
 	tsk := make(map[string]time.Duration)
 	dayNo := 0
-	fmt.Fprintf(wr, "TIME-SHEET %s:\n", reportMonth(rep.now))
-	tableHead(wr, rPrefix, tbl...)
-	tableHRule(wr, rPrefix, tbl...)
+	tw := borderedWriter{os.Stdout, rPrefix}
+	fmt.Fprintf(tw.wr, "TIME-SHEET %s:\n", reportMonth(rep.now))
+	tw.Head(tbl...)
+	tw.HRule(tbl...)
 	for _, day := range days {
-		tableStartRow(wr, rPrefix)
-		tableCell(wr, tbl[0].Width(), day.Start.Format(dateFormat))
+		tw.StartRow()
+		tw.Cell(tbl[0].Width(), day.Start.Format(dateFormat))
 		var work *Span
 		var tdur time.Duration
 		perTask := make(map[string]time.Duration)
@@ -114,18 +114,18 @@ func (rep *timeSheetReport) report(root *Task) {
 			}
 		})
 		if work == nil {
-			tableCell(wr, tableColsWidth(tbl[1:]...), "")
+			tw.Cell(colsWidth(tw, tbl[1:]...), "")
 		} else {
-			tableCell(wr, tbl[1].Width(), work.Start.Format(clockFormat))
-			tableCell(wr, tbl[2].Width(), work.Stop.Format(clockFormat))
+			tw.Cell(tbl[1].Width(), work.Start.Format(clockFormat))
+			tw.Cell(tbl[2].Width(), work.Stop.Format(clockFormat))
 			wdur, _ := work.Duration(rep.now)
-			tableCell(wr, tbl[3].Width(), hm(wdur-tdur).String())
-			tableCell(wr, tbl[4].Width(), hm(tdur).String())
+			tw.Cell(tbl[3].Width(), hm(wdur-tdur).String())
+			tw.Cell(tbl[4].Width(), hm(tdur).String())
 			for i, task := range rep.tasks {
 				if td := perTask[task]; td > 0 {
-					tableCell(wr, -tbl[5+i].Width(), hm(perTask[task]).String())
+					tw.Cell(-tbl[5+i].Width(), hm(perTask[task]).String())
 				} else {
-					tableCell(wr, -tbl[5+i].Width(), "")
+					tw.Cell(-tbl[5+i].Width(), "")
 				}
 			}
 			brk += wdur - tdur
@@ -136,32 +136,32 @@ func (rep *timeSheetReport) report(root *Task) {
 			stops += 60*h + m
 			dayNo++
 		}
-		fmt.Fprintln(wr)
+		fmt.Fprintln(tw.wr)
 	}
-	tableHRule(wr, rPrefix, tbl...)
-	tableStartRow(wr, rPrefix)
-	tableCell(wr, -tbl[0].Width(), "Sum:")
-	tableCell(wr, tableColsWidth(tbl[1:3]...), "")
-	tableCell(wr, tbl[3].Width(), hm(brk).String())
-	tableCell(wr, tbl[4].Width(), hm(wrk).String())
+	tw.HRule(tbl...)
+	tw.StartRow()
+	tw.Cell(-tbl[0].Width(), "Sum:")
+	tw.Cell(colsWidth(tw, tbl[1:3]...), "")
+	tw.Cell(tbl[3].Width(), hm(brk).String())
+	tw.Cell(tbl[4].Width(), hm(wrk).String())
 	for i, task := range rep.tasks {
-		tableCell(wr, -tbl[5+i].Width(), hm(tsk[task]).String())
+		tw.Cell(-tbl[5+i].Width(), hm(tsk[task]).String())
 	}
-	fmt.Fprintln(wr)
+	fmt.Fprintln(tw.wr)
 	if dayNo > 0 {
 		starts /= dayNo
 		stops /= dayNo
 		div := time.Duration(dayNo)
-		tableStartRow(wr, rPrefix)
-		tableCell(wr, -tbl[0].Width(), "Avg:")
-		tableCell(wr, tbl[1].Width(), fmt.Sprintf("%02d:%02d", starts/60, starts%60))
-		tableCell(wr, tbl[1].Width(), fmt.Sprintf("%02d:%02d", stops/60, stops%60))
-		//tableCell(wr, tableColsWidth(tbl[1:3]...), "")
-		tableCell(wr, tbl[3].Width(), hm(brk/div).String())
-		tableCell(wr, tbl[4].Width(), hm(wrk/div).String())
+		tw.StartRow()
+		tw.Cell(-tbl[0].Width(), "Avg:")
+		tw.Cell(tbl[1].Width(), fmt.Sprintf("%02d:%02d", starts/60, starts%60))
+		tw.Cell(tbl[1].Width(), fmt.Sprintf("%02d:%02d", stops/60, stops%60))
+		//tw.Cell(tableColsWidth(tbl[1:3]...), "")
+		tw.Cell(tbl[3].Width(), hm(brk/div).String())
+		tw.Cell(tbl[4].Width(), hm(wrk/div).String())
 		for i, task := range rep.tasks {
-			tableCell(wr, -tbl[5+i].Width(), hm(tsk[task]/div).String())
+			tw.Cell(-tbl[5+i].Width(), hm(tsk[task]/div).String())
 		}
-		fmt.Fprintln(wr)
+		fmt.Fprintln(tw.wr)
 	}
 }

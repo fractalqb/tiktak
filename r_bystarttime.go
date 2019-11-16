@@ -67,52 +67,52 @@ func (rep *byStartTimeReport) report(root *Task) {
 		tableCol{"Dur", 5},
 		tableCol{"Task", tpWidth},
 	}
-	wr := os.Stdout
-	fmt.Fprintf(wr, "TIMESPANS PER DAY %s:\n", reportMonth(rep.now))
-	tableHead(wr, rPrefix, tbl...)
+	tw := borderedWriter{os.Stdout, rPrefix}
+	fmt.Fprintf(tw.wr, "TIMESPANS PER DAY %s:\n", reportMonth(rep.now))
+	tw.Head(tbl...)
 	day := 0
 	var lastSpan *Span
 	for _, start := range starts {
 		thisDay := 100*start.Year() + start.YearDay()
 		if thisDay != day {
-			tableHRule(wr, rPrefix, tbl...)
-			tableStartRow(wr, rPrefix)
-			tableCell(wr, tableColsWidth(tbl...), start.Format(dateFormat))
-			fmt.Fprintln(wr)
-			tableHRule(wr, rPrefix, tbl...)
+			tw.HRule(tbl...)
+			tw.StartRow()
+			tw.Cell(colsWidth(tw, tbl...), start.Format(dateFormat))
+			fmt.Fprintln(tw.wr)
+			tw.HRule(tbl...)
 			day = thisDay
 		}
 		tasks := t2ts[start]
 		for _, task := range tasks {
 			for _, span := range task.Spans {
 				if span.Start == start {
-					tableStartRow(wr, rPrefix)
+					tw.StartRow()
 					if lastSpan == nil {
-						tableCell(wr, tbl[0].Width(), "")
+						tw.Cell(tbl[0].Width(), "")
 						lastSpan = new(Span)
 						*lastSpan = span
 					} else {
 						is := IntersectSpans(lastSpan, &span)
 						d, fin := is.Duration(rep.now)
 						if !fin || d > 0 {
-							tableCell(wr, tbl[0].Width(), "⇸" /*↪"*/)
+							tw.Cell(tbl[0].Width(), "⇸" /*↪"*/)
 						} else if span.Start.After(*lastSpan.Stop) {
-							tableCell(wr, tbl[0].Width(), "⇢")
+							tw.Cell(tbl[0].Width(), "⇢")
 						} else {
-							tableCell(wr, tbl[0].Width(), "")
+							tw.Cell(tbl[0].Width(), "")
 						}
 						*lastSpan = span
 					}
-					tableCell(wr, tbl[1].Width(), start.Format(clockFormat))
+					tw.Cell(tbl[1].Width(), start.Format(clockFormat))
 					if span.Stop == nil {
-						tableCell(wr, tbl[2].Width(), "")
+						tw.Cell(tbl[2].Width(), "")
 					} else {
-						tableCell(wr, tbl[2].Width(), span.Stop.Format(clockFormat))
+						tw.Cell(tbl[2].Width(), span.Stop.Format(clockFormat))
 					}
 					dur, _ := span.Duration(rep.now)
-					tableCell(wr, tbl[3].Width(), hm(dur).String())
-					tableCell(wr, tbl[4].Width(), pathString(task.Path()))
-					fmt.Fprintln(wr)
+					tw.Cell(tbl[3].Width(), hm(dur).String())
+					tw.Cell(tbl[4].Width(), pathString(task.Path()))
+					fmt.Fprintln(tw.wr)
 				}
 			}
 		}

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"time"
 	"unicode/utf8"
 
@@ -46,27 +45,28 @@ func defaultOutput(wr io.Writer, root *Task, now time.Time, lang language.Tag) {
 		tbl = append(tbl, tableCol{"Title", titleWidth + 2})
 	}
 	tbl = append(tbl, tableCol{"Today", 5}, tableCol{"All", 6})
-	tableHead(wr, rPrefix, tbl...)
-	tableHRule(wr, rPrefix, tbl...)
+	tw := borderedWriter{wr, rPrefix}
+	tw.Head(tbl...)
+	tw.HRule(tbl...)
 	var sumAll, sumDay time.Duration
 	root.WalkAll(coll, func(tp []*Task, nmp []string) {
 		ct := tp[len(tp)-1]
 		if len(ct.Spans) == 0 {
 			return
 		}
-		tableStartRow(wr, rPrefix)
+		tw.StartRow()
 		if running[ct] {
-			tableCell(wr, tbl[0].Width(), "↻")
+			tw.Cell(tbl[0].Width(), "↻")
 		} else {
-			tableCell(wr, tbl[0].Width(), " ")
+			tw.Cell(tbl[0].Width(), " ")
 		}
-		tableCell(wr, tbl[1].Width(), pathString(nmp))
+		tw.Cell(tbl[1].Width(), pathString(nmp))
 		colOff := 0
 		if titleWidth > 0 {
 			if ct.Title == "" {
-				tableCell(wr, tbl[2].Width(), "")
+				tw.Cell(tbl[2].Width(), "")
 			} else {
-				tableCell(wr, tbl[2].Width(), `"`+ct.Title+`"`)
+				tw.Cell(tbl[2].Width(), `"`+ct.Title+`"`)
 			}
 			colOff = 1
 		}
@@ -85,25 +85,25 @@ func defaultOutput(wr io.Writer, root *Task, now time.Time, lang language.Tag) {
 			durDay += d
 		}
 		if durDay > 0 {
-			tableCell(wr, -tbl[2+colOff].Width(), hm(durDay).String())
+			tw.Cell(-tbl[2+colOff].Width(), hm(durDay).String())
 		} else {
-			tableCell(wr, tbl[2+colOff].Width(), "")
+			tw.Cell(tbl[2+colOff].Width(), "")
 		}
-		tableCell(wr, -tbl[3+colOff].Width(), hm(durAll).String())
+		tw.Cell(-tbl[3+colOff].Width(), hm(durAll).String())
 		fmt.Fprintln(wr)
 		sumAll += durAll
 		sumDay += durDay
 	})
-	tableHRule(os.Stdout, rPrefix, tbl...)
-	tableStartRow(wr, rPrefix)
+	tw.HRule(tbl...)
+	tw.StartRow()
 	if titleWidth > 0 {
-		tableCell(wr, -tableColsWidth(tbl[:3]...), "Sum:")
-		tableCell(wr, -tbl[3].Width(), hm(sumDay).String())
-		tableCell(wr, -tbl[4].Width(), hm(sumAll).String())
+		tw.Cell(-colsWidth(tw, tbl[:3]...), "Sum:")
+		tw.Cell(-tbl[3].Width(), hm(sumDay).String())
+		tw.Cell(-tbl[4].Width(), hm(sumAll).String())
 	} else {
-		tableCell(wr, -tableColsWidth(tbl[:2]...), "Sum:")
-		tableCell(wr, -tbl[2].Width(), hm(sumDay).String())
-		tableCell(wr, -tbl[3].Width(), hm(sumAll).String())
+		tw.Cell(-colsWidth(tw, tbl[:2]...), "Sum:")
+		tw.Cell(-tbl[2].Width(), hm(sumDay).String())
+		tw.Cell(-tbl[3].Width(), hm(sumAll).String())
 	}
 	fmt.Fprintln(wr)
 	if runNo > 1 {
