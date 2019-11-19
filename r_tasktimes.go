@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"time"
 	"unicode/utf8"
 
@@ -10,13 +11,27 @@ import (
 	"golang.org/x/text/language"
 )
 
-type TaskTimes struct {
-	wr io.Writer
-	tw tableWriter
+func init() {
+	reports["tasks"] = taskTimesFactory
 }
 
-func (rep TaskTimes) Generate(root *Task, now time.Time, lang language.Tag) {
-	coll := collate.New(lang)
+func taskTimesFactory(lang language.Tag, args []string) Reporter {
+	res := &taskTimesReport{
+		wr:   os.Stdout,
+		tw:   borderedWriter{os.Stdout, rPrefix},
+		lang: lang,
+	}
+	return res
+}
+
+type taskTimesReport struct {
+	wr   io.Writer
+	tw   tableWriter
+	lang language.Tag
+}
+
+func (rep taskTimesReport) Generate(root *Task, now time.Time) {
+	coll := collate.New(rep.lang)
 	var tpWidth, titleWidth int
 	runNo := 0
 	running := make(map[*Task]bool)

@@ -70,8 +70,8 @@ func (rep *timeSheetReport) Generate(root *Task, now time.Time) {
 		tableCol{"Day", utf8.RuneCountInString(dateFormat)},
 		tableCol{"Start", 5},
 		tableCol{"Stop", 5},
-		tableCol{"Break", 5},
-		tableCol{"Work", 5},
+		tableCol{"Break", 6},
+		tableCol{"Work", 6},
 	}
 	for _, task := range rep.tasks {
 		w := utf8.RuneCountInString(task)
@@ -121,8 +121,8 @@ func (rep *timeSheetReport) Generate(root *Task, now time.Time) {
 			rep.tw.Cell(tbl[1].Width(), work.Start.Format(clockFormat))
 			rep.tw.Cell(tbl[2].Width(), work.Stop.Format(clockFormat))
 			wdur, _ := work.Duration(now)
-			rep.tw.Cell(tbl[3].Width(), hm(wdur-tdur).String())
-			rep.tw.Cell(tbl[4].Width(), hm(tdur).String())
+			rep.tw.Cell(-tbl[3].Width(), hm(wdur-tdur).String())
+			rep.tw.Cell(-tbl[4].Width(), hm(tdur).String())
 			for i, task := range rep.tasks {
 				if td := perTask[task]; td > 0 {
 					rep.tw.Cell(-tbl[5+i].Width(), hm(perTask[task]).String())
@@ -144,8 +144,8 @@ func (rep *timeSheetReport) Generate(root *Task, now time.Time) {
 	rep.tw.StartRow()
 	rep.tw.Cell(-tbl[0].Width(), "Sum:")
 	rep.tw.Cell(colsWidth(rep.tw, tbl[1:3]...), "")
-	rep.tw.Cell(tbl[3].Width(), hm(brk).String())
-	rep.tw.Cell(tbl[4].Width(), hm(wrk).String())
+	rep.tw.Cell(-tbl[3].Width(), hm(brk).String())
+	rep.tw.Cell(-tbl[4].Width(), hm(wrk).String())
 	for i, task := range rep.tasks {
 		rep.tw.Cell(-tbl[5+i].Width(), hm(tsk[task]).String())
 	}
@@ -159,8 +159,8 @@ func (rep *timeSheetReport) Generate(root *Task, now time.Time) {
 		rep.tw.Cell(tbl[1].Width(), fmt.Sprintf("%02d:%02d", starts/60, starts%60))
 		rep.tw.Cell(tbl[1].Width(), fmt.Sprintf("%02d:%02d", stops/60, stops%60))
 		//tw.Cell(tableColsWidth(tbl[1:3]...), "")
-		rep.tw.Cell(tbl[3].Width(), hm(brk/div).String())
-		rep.tw.Cell(tbl[4].Width(), hm(wrk/div).String())
+		rep.tw.Cell(-tbl[3].Width(), hm(brk/div).String())
+		rep.tw.Cell(-tbl[4].Width(), hm(wrk/div).String())
 		for i, task := range rep.tasks {
 			rep.tw.Cell(-tbl[5+i].Width(), hm(tsk[task]/div).String())
 		}

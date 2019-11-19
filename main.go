@@ -168,17 +168,6 @@ func findPath(root *Task, pat []string) (res *Task, err error) {
 	return res, err
 }
 
-func startKnown(t time.Time, root *Task, pat []string) {
-	selected, err := findPath(root, pat)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if selected == nil {
-		log.Fatalf("no task matches '%s'", pathString(pat))
-	}
-	selected.Start(t)
-}
-
 func reportMonth(t time.Time) string {
 	return t.Format("01/2006")
 }
@@ -255,11 +244,12 @@ Formats:
 		rep := reports[*report](lang, flag.Args())
 		rep.Generate(root, t)
 	case len(flag.Args()) == 0:
-		TaskTimes{
+		taskTimesReport{
 			wr: os.Stdout,
 			tw: borderedWriter{os.Stdout, rPrefix},
 			// tw: csvWriter{wr: os.Stdout, sep: ';'},
-		}.Generate(root, t, lang)
+			lang: lang,
+		}.Generate(root, t)
 	default:
 		if len(flag.Args()) != 1 {
 			log.Fatal("cannot start more than one task")
@@ -269,14 +259,28 @@ Formats:
 		case pstr == "" || pstr == "/":
 			root.WalkAll(nil, CloseOpenSpans{t}.Do)
 			root.Start(t)
+			fmt.Printf("switched to task '%s'\n", pathString(root.Path()))
 		case pstr[0] == '/':
-			root.WalkAll(nil, CloseOpenSpans{t}.Do)
 			path := strings.Split(pstr, "/")
-			root.Get(path[1:]...).Start(t)
+			task := root.Get(path[1:]...)
+			if task == nil {
+				log.Fatalf("no task '%s'", pstr)
+			}
+			root.WalkAll(nil, CloseOpenSpans{t}.Do)
+			task.Start(t)
+			fmt.Printf("switched to task '%s'\n", pathString(task.Path()))
 		default:
+			pat := strings.Split(pstr, "/")
+			task, err := findPath(root, pat)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if task == nil {
+				log.Fatalf("no task matches '%s'", pathString(pat))
+			}
 			root.WalkAll(nil, CloseOpenSpans{t}.Do)
-			path := strings.Split(pstr, "/")
-			startKnown(t, root, path)
+			task.Start(t)
+			fmt.Printf("switched to task '%s'\n", pathString(task.Path()))
 		}
 	}
 	saveTasks(dataFile(t), root)
