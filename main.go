@@ -13,19 +13,32 @@ import (
 	"time"
 
 	"golang.org/x/text/language"
+	"golang.org/x/text/message"
+
+	"git.fractalqb.de/fractalqb/tiktak/txtab"
 )
 
 const (
-	envDDir     = "TIKTOK_DATA"
+	envDDir     = "TIKTAK_DATA"
 	rPrefix     = "  "
-	dateFormat  = "Mon, 02 Jan 2006"
 	clockFormat = "15:04"
 )
 
 var (
-	timeFmt string
-	reports = make(map[string]reportFactory)
+	timeFmt    string
+	reports    = make(map[string]reportFactory)
+	dateFormat string
+	lang       language.Tag
+	msgPr      *message.Printer
+	csvOut     string
 )
+
+func newTabFormatter() txtab.Formatter {
+	if csvOut == "" {
+		return &txtab.Table{Prefix: rPrefix}
+	}
+	return &txtab.Csv{FSep: csvOut}
+}
 
 func reportNames() (res []string) {
 	for nm := range reports {
@@ -117,7 +130,7 @@ func dataFile(t time.Time) string {
 		dir = "."
 	}
 	if dataFileNm == "" {
-		dataFileNm = t.Format("tiktok-2006-01.json")
+		dataFileNm = t.Format("tiktak-2006-01.json")
 	}
 	if strings.IndexByte(dataFileNm, '/') >= 0 {
 		return dataFileNm
@@ -132,9 +145,11 @@ func (d hm) String() string {
 	h := int(hs)
 	var sb strings.Builder
 	switch timeFmt {
-	case "hf":
+	case "f":
+		msgPr.Fprintf(&sb, "%05.2f", hs)
+	case "c":
 		fmt.Fprintf(&sb, "%05.2f", hs)
-	case "hm":
+	case "m":
 		m := int(math.Round(60 * (hs - float64(h))))
 		if m >= 60 {
 			h++
@@ -202,14 +217,14 @@ func parseTime(tstr string) time.Time {
 func main() {
 	flag.StringVar(&dataFileNm, "f", "",
 		`explicitly choose data file.
-When not explicitly selected tiktok will look in the directory given
+When not explicitly selected tiktak will look in the directory given
 in the `+envDDir+` environment variable.`)
 	flag.DurationVar(&microGap, "ugap", time.Minute,
 		`length of µ-gap`)
 	flag.StringVar(&flagLang, "lang", "",
 		`select language`)
-	flag.StringVar(&timeFmt, "d", "hm",
-		`select format for durations: hm, hf`)
+	flag.StringVar(&timeFmt, "d", "m",
+		`select format for durations: m, f, c`)
 	stop := flag.Bool("stop", false,
 		`stop all running clocks`)
 	printFile := flag.Bool("print-file", false,
@@ -220,6 +235,9 @@ Formats:
  - yyyy-mm-ddTHH:MM
  - mm/yyyy
  - HH:MM`)
+	flag.StringVar(&dateFormat, "date", "Mon, 02 Jan 2006",
+		"set format for date output")
+	flag.StringVar(&csvOut, "csv", "", "set separator and use CSV output")
 	//title := flag.String("title", "", "set task's title")
 	report := flag.String("r", "",
 		`select report: `+strings.Join(reportNames(), ", "))
@@ -229,12 +247,12 @@ Formats:
 		fmt.Println(dataFile(t))
 		return
 	}
-	var lang language.Tag
 	if flagLang != "" {
 		lang = language.Make(flagLang)
 	} else {
 		lang = language.Make(os.Getenv("LANG"))
 	}
+	msgPr = message.NewPrinter(lang)
 	root := loadTasks(t)
 	switch {
 	case *stop:
@@ -245,9 +263,10 @@ Formats:
 		rep.Generate(root, t)
 	case len(flag.Args()) == 0:
 		taskTimesReport{
-			wr: os.Stdout,
-			tw: borderedWriter{os.Stdout, rPrefix},
-			// tw: csvWriter{wr: os.Stdout, sep: ';'},
+			tw: txtab.Writer{
+				W: os.Stdout,
+				F: newTabFormatter(),
+			},
 			lang: lang,
 		}.Generate(root, t)
 	default:

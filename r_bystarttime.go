@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"sort"
 	"time"
 	"unicode/utf8"
+
+	"git.fractalqb.de/fractalqb/tiktak/txtab"
 
 	"golang.org/x/text/language"
 
@@ -19,8 +20,10 @@ func init() {
 
 func byStartTimeFactory(lang language.Tag, args []string) Reporter {
 	r := &byStartTimeReport{
-		wr:   os.Stdout,
-		tw:   borderedWriter{os.Stdout, rPrefix},
+		tw: txtab.Writer{
+			W: os.Stdout,
+			F: newTabFormatter(),
+		},
 		coll: collate.New(lang),
 	}
 	return r
@@ -36,8 +39,7 @@ func appendUniqeTask(ts []*Task, t *Task) []*Task {
 }
 
 type byStartTimeReport struct {
-	wr   io.Writer
-	tw   tableWriter
+	tw   txtab.Writer
 	coll *collate.Collator
 }
 
@@ -63,59 +65,57 @@ func (rep *byStartTimeReport) Generate(root *Task, now time.Time) {
 	sort.Slice(starts, func(i, j int) bool {
 		return starts[i].Before(starts[j])
 	})
-	tbl := []tableCol{
-		tableCol{"↹", 1},
-		tableCol{"Start", 5},
-		tableCol{"Stop", 5},
-		tableCol{"Dur", 5},
-		tableCol{"Task", tpWidth},
-	}
-	tw := borderedWriter{os.Stdout, rPrefix}
-	fmt.Fprintf(tw.wr, "TIMESPANS PER DAY %s:\n", reportMonth(now))
-	tw.Head(tbl...)
+	tw := &rep.tw
+	tw.AddColumn("↹", 1)
+	tw.AddColumn("Start", 5)
+	tw.AddColumn("Stop", 5)
+	tw.AddColumn("Dur", 5)
+	tw.AddColumn("Task", tpWidth)
+	fmt.Fprintf(tw.W, "TIMESPANS PER DAY %s:\n", reportMonth(now))
+	tw.Header()
 	day := 0
 	var lastSpan *Span
 	for _, start := range starts {
 		thisDay := 100*start.Year() + start.YearDay()
 		if thisDay != day {
-			tw.HRule(tbl...)
-			tw.StartRow()
-			tw.Cell(colsWidth(tw, tbl...), start.Format(dateFormat))
-			fmt.Fprintln(tw.wr)
-			tw.HRule(tbl...)
+			tw.Hrule()
+			tw.RowStart()
+			tw.Cells(-1, start.Format(dateFormat))
+			tw.RowEnd()
+			tw.Hrule()
 			day = thisDay
 		}
 		tasks := t2ts[start]
 		for _, task := range tasks {
 			for _, span := range task.Spans {
 				if span.Start == start {
-					tw.StartRow()
+					tw.RowStart()
 					if lastSpan == nil {
-						tw.Cell(tbl[0].Width(), "")
+						tw.Cell("")
 						lastSpan = new(Span)
 						*lastSpan = span
 					} else {
 						is := IntersectSpans(lastSpan, &span)
 						d, fin := is.Duration(now)
 						if !fin || d > 0 {
-							tw.Cell(tbl[0].Width(), "⇸" /*↪"*/)
+							tw.Cell("⇸" /*↪"*/)
 						} else if span.Start.After(*lastSpan.Stop) {
-							tw.Cell(tbl[0].Width(), "⇢")
+							tw.Cell("⇢")
 						} else {
-							tw.Cell(tbl[0].Width(), "")
+							tw.Cell("")
 						}
 						*lastSpan = span
 					}
-					tw.Cell(tbl[1].Width(), start.Format(clockFormat))
+					tw.Cell(start.Format(clockFormat))
 					if span.Stop == nil {
-						tw.Cell(tbl[2].Width(), "")
+						tw.Cell("")
 					} else {
-						tw.Cell(tbl[2].Width(), span.Stop.Format(clockFormat))
+						tw.Cell(span.Stop.Format(clockFormat))
 					}
 					dur, _ := span.Duration(now)
-					tw.Cell(tbl[3].Width(), hm(dur).String())
-					tw.Cell(tbl[4].Width(), pathString(task.Path()))
-					fmt.Fprintln(tw.wr)
+					tw.Cell(hm(dur).String())
+					tw.Cell(pathString(task.Path()))
+					tw.RowEnd()
 				}
 			}
 		}

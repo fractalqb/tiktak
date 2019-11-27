@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"time"
 	"unicode/utf8"
+
+	"git.fractalqb.de/fractalqb/tiktak/txtab"
 
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
@@ -17,16 +18,17 @@ func init() {
 
 func taskTimesFactory(lang language.Tag, args []string) Reporter {
 	res := &taskTimesReport{
-		wr:   os.Stdout,
-		tw:   borderedWriter{os.Stdout, rPrefix},
+		tw: txtab.Writer{
+			W: os.Stdout,
+			F: newTabFormatter(),
+		},
 		lang: lang,
 	}
 	return res
 }
 
 type taskTimesReport struct {
-	wr   io.Writer
-	tw   tableWriter
+	tw   txtab.Writer
 	lang language.Tag
 }
 
@@ -59,35 +61,36 @@ func (rep taskTimesReport) Generate(root *Task, now time.Time) {
 			running[ct] = false
 		}
 	})
-	fmt.Fprintf(rep.wr, "TASK TIMES %s:\n", reportMonth(now))
-	tbl := []tableCol{tableCol{title: "⏲"}, tableCol{"Task", tpWidth}}
+	tw := &rep.tw
+	fmt.Fprintf(tw.W, "TASK TIMES %s:\n", reportMonth(now))
+	tw.AddColumn("⏲")
+	tw.AddColumn("Task", tpWidth)
 	if titleWidth > 0 {
-		tbl = append(tbl, tableCol{"Title", titleWidth + 2})
+		tw.AddColumn("Title", titleWidth+2)
 	}
-	tbl = append(tbl, tableCol{"Today", 5}, tableCol{"All", 6})
-	rep.tw.Head(tbl...)
-	rep.tw.HRule(tbl...)
+	tw.AddColumn("Today", 5, txtab.Right)
+	tw.AddColumn("All", 6, txtab.Right)
+	tw.Header()
+	tw.Hrule()
 	var sumAll, sumDay time.Duration
 	root.WalkAll(coll, func(tp []*Task, nmp []string) {
 		ct := tp[len(tp)-1]
 		if len(ct.Spans) == 0 {
 			return
 		}
-		rep.tw.StartRow()
+		tw.RowStart()
 		if running[ct] {
-			rep.tw.Cell(tbl[0].Width(), "↻")
+			tw.Cell("↻")
 		} else {
-			rep.tw.Cell(tbl[0].Width(), " ")
+			tw.Cell("")
 		}
-		rep.tw.Cell(tbl[1].Width(), pathString(nmp))
-		colOff := 0
+		tw.Cell(pathString(nmp))
 		if titleWidth > 0 {
 			if ct.Title == "" {
-				rep.tw.Cell(tbl[2].Width(), "")
+				tw.Cell("")
 			} else {
-				rep.tw.Cell(tbl[2].Width(), `"`+ct.Title+`"`)
+				tw.Cell(`"` + ct.Title + `"`)
 			}
-			colOff = 1
 		}
 		var (
 			durAll, durDay time.Duration
@@ -104,27 +107,27 @@ func (rep taskTimesReport) Generate(root *Task, now time.Time) {
 			durDay += d
 		}
 		if durDay > 0 {
-			rep.tw.Cell(-tbl[2+colOff].Width(), hm(durDay).String())
+			tw.Cell(hm(durDay).String())
 		} else {
-			rep.tw.Cell(tbl[2+colOff].Width(), "")
+			tw.Cell("")
 		}
-		rep.tw.Cell(-tbl[3+colOff].Width(), hm(durAll).String())
-		fmt.Fprintln(rep.wr)
+		tw.Cell(hm(durAll).String())
+		tw.RowEnd()
 		sumAll += durAll
 		sumDay += durDay
 	})
-	rep.tw.HRule(tbl...)
-	rep.tw.StartRow()
+	tw.Hrule()
+	tw.RowStart()
 	if titleWidth > 0 {
-		rep.tw.Cell(-colsWidth(rep.tw, tbl[:3]...), "Sum:")
-		rep.tw.Cell(-tbl[3].Width(), hm(sumDay).String())
-		rep.tw.Cell(-tbl[4].Width(), hm(sumAll).String())
+		tw.Cells(3, "Sum:", txtab.Right)
+		tw.Cell(hm(sumDay).String())
+		tw.Cell(hm(sumAll).String())
 	} else {
-		rep.tw.Cell(-colsWidth(rep.tw, tbl[:2]...), "Sum:")
-		rep.tw.Cell(-tbl[2].Width(), hm(sumDay).String())
-		rep.tw.Cell(-tbl[3].Width(), hm(sumAll).String())
+		tw.Cells(2, "Sum:", txtab.Right)
+		tw.Cell(hm(sumDay).String())
+		tw.Cell(hm(sumAll).String())
 	}
-	fmt.Fprintln(rep.wr)
+	tw.RowEnd()
 	if runNo > 1 {
 		fmt.Printf("\n%s%d RUNNING TASKS\n", rPrefix, runNo)
 	}
