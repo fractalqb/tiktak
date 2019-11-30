@@ -72,7 +72,7 @@ func (rep taskTimesReport) Generate(root *Task, now time.Time) {
 	}
 	tw.AddColumn("Today", 5, txtab.Right)
 	tw.AddColumn("Week", 5, txtab.Right)
-	tw.AddColumn("All", 6, txtab.Right)
+	tw.AddColumn("Month", 6, txtab.Right)
 	tw.Header()
 	tw.Hrule()
 	var sumAll, sumWeek, sumDay time.Duration

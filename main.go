@@ -20,6 +20,8 @@ import (
 	"git.fractalqb.de/fractalqb/tiktak/txtab"
 )
 
+//go:generate versioner -bno build_no ./VERSION ./version.go
+
 const (
 	envDDir     = "TIKTAK_DATA"
 	rPrefix     = "  "
@@ -33,6 +35,7 @@ var (
 	lang       language.Tag
 	msgPr      *message.Printer
 	csvOut     string
+	version    = fmt.Sprintf("%d.%d.%d-%s+%d", Major, Minor, Patch, Quality, BuildNo)
 )
 
 func newTabFormatter() txtab.Formatter {
@@ -263,33 +266,18 @@ func parseTime(tstr string) time.Time {
 }
 
 func main() {
-	flag.StringVar(&dataFileNm, "f", "",
-		`explicitly choose data file.
-When not explicitly selected tiktak will look in the directory given
-in the `+envDDir+` environment variable.`)
-	flag.DurationVar(&microGap, "ugap", time.Minute,
-		`length of µ-gap`)
-	flag.StringVar(&flagLang, "lang", "",
-		`select language`)
-	flag.StringVar(&timeFmt, "d", "m",
-		`select format for durations: m, f, c`)
-	stop := flag.Bool("zzz", false,
-		`stop all running clocks`)
-	printFile := flag.Bool("print-file", false,
-		`print data file name`)
-	flagNow := flag.String("t", "",
-		`Set current time for operation. Missing elements are taken from now().
-Formats:
- - HH:MM
- - {dwmy}-n[Thh:mm]
- - mm/yyyy
- - yyyy-mm-ddTHH:MM`)
-	flag.StringVar(&dateFormat, "date", "Mon, 02 Jan 2006",
-		"set format for date output")
-	flag.StringVar(&csvOut, "csv", "", "set separator and use CSV output")
+	flag.Usage = usage
+	flag.StringVar(&dataFileNm, "f", "", flagDocFile)
+	flag.DurationVar(&microGap, "ugap", time.Minute, flagDocUgap)
+	flag.StringVar(&flagLang, "lang", "", flagDocLang)
+	flag.StringVar(&timeFmt, "d", "m", flagDocDurFmt)
+	stop := flag.Bool("zzz", false, flagDocZzz)
+	printFile := flag.Bool("print-file", false, flagDocPFile)
+	flagNow := flag.String("t", "", flagDocNow)
+	flag.StringVar(&dateFormat, "date", "Mon, 02 Jan 2006", flagDocDateFmt)
+	flag.StringVar(&csvOut, "csv", "", flagDocCsv)
 	//title := flag.String("title", "", "set task's title")
-	report := flag.String("r", "",
-		`select report: `+strings.Join(reportNames(), ", "))
+	report := flag.String("r", "", flagDocReport())
 	flag.Parse()
 	t := parseTime(*flagNow)
 	if *printFile {
