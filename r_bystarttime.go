@@ -80,7 +80,8 @@ func (rep *byStartTimeReport) Generate(root *Task, now time.Time) {
 		if thisDay != day {
 			tw.Hrule()
 			tw.RowStart()
-			tw.Cells(-1, start.Format(dateFormat))
+			_, kw := start.ISOWeek()
+			tw.Cells(-1, fmt.Sprintf("%s; KW%d", start.Format(dateFormat), kw))
 			tw.RowEnd()
 			tw.Hrule()
 			day = thisDay
@@ -113,7 +114,7 @@ func (rep *byStartTimeReport) Generate(root *Task, now time.Time) {
 						tw.Cell(span.Stop.Format(clockFormat))
 					}
 					dur, _ := span.Duration(now)
-					tw.Cell(hm(dur).String())
+					tw.Cell(hm(dur))
 					tw.Cell(pathString(task.Path()))
 					tw.RowEnd()
 				}

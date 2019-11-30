@@ -35,6 +35,8 @@ type taskTimesReport struct {
 func (rep taskTimesReport) Generate(root *Task, now time.Time) {
 	coll := collate.New(rep.lang)
 	var tpWidth, titleWidth int
+	today := DaySpan(now)
+	thisWeek := WeekSpan(now)
 	runNo := 0
 	running := make(map[*Task]bool)
 	root.WalkAll(coll, func(tp []*Task, nmp []string) {
@@ -62,17 +64,18 @@ func (rep taskTimesReport) Generate(root *Task, now time.Time) {
 		}
 	})
 	tw := &rep.tw
-	fmt.Fprintf(tw.W, "TASK TIMES %s:\n", reportMonth(now))
+	fmt.Fprintf(tw.W, "TASK TIMES %s:\n", now.Format(dateFormat))
 	tw.AddColumn("⏲")
 	tw.AddColumn("Task", tpWidth)
 	if titleWidth > 0 {
 		tw.AddColumn("Title", titleWidth+2)
 	}
 	tw.AddColumn("Today", 5, txtab.Right)
+	tw.AddColumn("Week", 5, txtab.Right)
 	tw.AddColumn("All", 6, txtab.Right)
 	tw.Header()
 	tw.Hrule()
-	var sumAll, sumDay time.Duration
+	var sumAll, sumWeek, sumDay time.Duration
 	root.WalkAll(coll, func(tp []*Task, nmp []string) {
 		ct := tp[len(tp)-1]
 		if len(ct.Spans) == 0 {
@@ -92,41 +95,46 @@ func (rep taskTimesReport) Generate(root *Task, now time.Time) {
 				tw.Cell(`"` + ct.Title + `"`)
 			}
 		}
-		var (
-			durAll, durDay time.Duration
-			today          = DaySpan(now)
-		)
+		var durAll, durWeek, durDay time.Duration
 		for _, span := range ct.Spans {
 			d, _ := span.Duration(now)
 			durAll += d
 			if span.Stop == nil {
 				span.Stop = &now
 			}
+			weekSpan := IntersectSpans(&thisWeek, &span)
+			d, _ = weekSpan.Duration(now)
+			durWeek += d
 			daySpan := IntersectSpans(&today, &span)
 			d, _ = daySpan.Duration(now)
 			durDay += d
 		}
 		if durDay > 0 {
-			tw.Cell(hm(durDay).String())
+			tw.Cell(hm(durDay))
 		} else {
 			tw.Cell("")
 		}
-		tw.Cell(hm(durAll).String())
+		if durWeek > 0 {
+			tw.Cell(hm(durWeek))
+		} else {
+			tw.Cell("")
+		}
+		tw.Cell(hm(durAll))
 		tw.RowEnd()
 		sumAll += durAll
+		sumWeek += durWeek
 		sumDay += durDay
 	})
 	tw.Hrule()
 	tw.RowStart()
 	if titleWidth > 0 {
 		tw.Cells(3, "Sum:", txtab.Right)
-		tw.Cell(hm(sumDay).String())
-		tw.Cell(hm(sumAll).String())
 	} else {
 		tw.Cells(2, "Sum:", txtab.Right)
-		tw.Cell(hm(sumDay).String())
-		tw.Cell(hm(sumAll).String())
 	}
+	tw.Cell(hm(sumDay))
+	tw.Cell(hm(sumWeek))
+	tw.Cell(hm(sumAll))
 	tw.RowEnd()
 	if runNo > 1 {
 		fmt.Printf("\n%s%d RUNNING TASKS\n", rPrefix, runNo)

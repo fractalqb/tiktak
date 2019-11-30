@@ -129,11 +129,11 @@ func (rep *timeSheetReport) Generate(root *Task, now time.Time) {
 			tw.Cell(work.Start.Format(clockFormat))
 			tw.Cell(work.Stop.Format(clockFormat))
 			wdur, _ := work.Duration(now)
-			tw.Cell(hm(wdur - tdur).String())
-			tw.Cell(hm(tdur).String())
+			tw.Cell(hm(wdur - tdur))
+			tw.Cell(hm(tdur))
 			for _, task := range rep.tasks {
 				if td := perTask[task]; td > 0 {
-					tw.Cell(hm(perTask[task]).String())
+					tw.Cell(hm(perTask[task]))
 				} else {
 					tw.Cell("")
 				}
@@ -157,10 +157,10 @@ func (rep *timeSheetReport) Generate(root *Task, now time.Time) {
 		tw.Cell("Avg:", txtab.Right)
 		tw.Cell(fmt.Sprintf("%02d:%02d", starts/60, starts%60))
 		tw.Cell(fmt.Sprintf("%02d:%02d", stops/60, stops%60))
-		tw.Cell(hm(brk / div).String())
-		tw.Cell(hm(wrk / div).String())
+		tw.Cell(hm(brk / div))
+		tw.Cell(hm(wrk / div))
 		for _, task := range rep.tasks {
-			tw.Cell(hm(tsk[task] / div).String())
+			tw.Cell(hm(tsk[task] / div))
 		}
 		tw.RowEnd()
 	}
@@ -168,10 +168,10 @@ func (rep *timeSheetReport) Generate(root *Task, now time.Time) {
 	tw.Cell("Count:", txtab.Right)
 	tw.Cell(dayNo, txtab.Left)
 	tw.Cell("Sum:", txtab.Right)
-	tw.Cell(hm(brk).String())
-	tw.Cell(hm(wrk).String())
+	tw.Cell(hm(brk))
+	tw.Cell(hm(wrk))
 	for _, task := range rep.tasks {
-		tw.Cell(hm(tsk[task]).String())
+		tw.Cell(hm(tsk[task]))
 	}
 	tw.RowEnd()
 }

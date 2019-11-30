@@ -36,6 +36,16 @@ func DaySpan(t time.Time) Span {
 	return res
 }
 
+// TODO Week always starts monday
+func WeekSpan(t time.Time) Span {
+	for t.Weekday() != time.Monday {
+		t = t.Add(-24 * time.Hour)
+	}
+	res := DaySpan(t)
+	*res.Stop = res.Stop.Add(6 * 24 * time.Hour)
+	return res
+}
+
 func CoverSpans(s1, s2 *Span) Span {
 	if s2.Start.Before(s1.Start) {
 		s1, s2 = s2, s1

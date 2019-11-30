@@ -8,7 +8,9 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -85,6 +87,9 @@ func loadTasks(t time.Time) *Task {
 		if depth > 0 {
 			t.parent = tp[depth-1]
 		}
+		sort.Slice(t.Spans, func(i, j int) bool {
+			return t.Spans[i].Start.Before(t.Spans[j].Start)
+		})
 	})
 	return res
 }
@@ -187,9 +192,52 @@ func reportMonth(t time.Time) string {
 	return t.Format("01/2006")
 }
 
+var relTimeRegexp = regexp.MustCompile(`^([ymwd])-(\d+)(?:T(\d\d:\d\d))?$`)
+
+func parseRelTime(rt string) (time.Time, bool) {
+	match := relTimeRegexp.FindStringSubmatch(rt)
+	if match == nil {
+		return time.Time{}, false
+	}
+	diff, err := strconv.Atoi(match[2])
+	if err != nil {
+		log.Fatal(err)
+	}
+	res := time.Now()
+	if match[3] != "" {
+		t, err := time.ParseInLocation("15:04", match[3], res.Location())
+		if err != nil {
+			log.Fatal(err)
+		}
+		res = time.Date(
+			res.Year(), res.Month(), res.Day(),
+			t.Hour(), t.Minute(), res.Second(), res.Nanosecond(),
+			res.Location())
+	}
+	ye, mo, da := res.Date()
+	switch match[1] {
+	case "d":
+		da -= diff
+	case "w":
+		da -= 7 * diff
+	case "m":
+		mo -= time.Month(diff)
+	case "y":
+		ye -= diff
+	}
+	res = time.Date(
+		ye, mo, da,
+		res.Hour(), res.Minute(), res.Second(), res.Nanosecond(),
+		res.Location())
+	return res, true
+}
+
 func parseTime(tstr string) time.Time {
 	if tstr == "" {
 		return time.Now().Round(time.Second)
+	}
+	if res, ok := parseRelTime(tstr); ok {
+		return res
 	}
 	t, err := time.ParseInLocation("2006-01-02T15:04", tstr, time.Local)
 	if err == nil {
@@ -225,16 +273,17 @@ in the `+envDDir+` environment variable.`)
 		`select language`)
 	flag.StringVar(&timeFmt, "d", "m",
 		`select format for durations: m, f, c`)
-	stop := flag.Bool("stop", false,
+	stop := flag.Bool("zzz", false,
 		`stop all running clocks`)
 	printFile := flag.Bool("print-file", false,
 		`print data file name`)
 	flagNow := flag.String("t", "",
 		`Set current time for operation. Missing elements are taken from now().
 Formats:
- - yyyy-mm-ddTHH:MM
+ - HH:MM
+ - {dwmy}-n[Thh:mm]
  - mm/yyyy
- - HH:MM`)
+ - yyyy-mm-ddTHH:MM`)
 	flag.StringVar(&dateFormat, "date", "Mon, 02 Jan 2006",
 		"set format for date output")
 	flag.StringVar(&csvOut, "csv", "", "set separator and use CSV output")
@@ -254,10 +303,11 @@ Formats:
 	}
 	msgPr = message.NewPrinter(lang)
 	root := loadTasks(t)
+	doSave := false
 	switch {
 	case *stop:
 		root.WalkAll(nil, CloseOpenSpans{t}.Do)
-		saveTasks(dataFile(t), root)
+		doSave = true
 	case *report != "":
 		rep := reports[*report](lang, flag.Args())
 		rep.Generate(root, t)
@@ -278,6 +328,7 @@ Formats:
 		case pstr == "" || pstr == "/":
 			root.WalkAll(nil, CloseOpenSpans{t}.Do)
 			root.Start(t)
+			doSave = true
 			fmt.Printf("switched to task '%s'\n", pathString(root.Path()))
 		case pstr[0] == '/':
 			path := strings.Split(pstr, "/")
@@ -287,6 +338,7 @@ Formats:
 			}
 			root.WalkAll(nil, CloseOpenSpans{t}.Do)
 			task.Start(t)
+			doSave = true
 			fmt.Printf("switched to task '%s'\n", pathString(task.Path()))
 		default:
 			pat := strings.Split(pstr, "/")
@@ -299,8 +351,11 @@ Formats:
 			}
 			root.WalkAll(nil, CloseOpenSpans{t}.Do)
 			task.Start(t)
+			doSave = true
 			fmt.Printf("switched to task '%s'\n", pathString(task.Path()))
 		}
 	}
-	saveTasks(dataFile(t), root)
+	if doSave {
+		saveTasks(dataFile(t), root)
+	}
 }
