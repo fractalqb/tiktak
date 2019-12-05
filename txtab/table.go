@@ -171,7 +171,11 @@ func (tab *Table) Cell(wr io.Writer, i int, v interface{}, props ...interface{})
 	case fmt.Stringer:
 		s = t.String()
 	default:
-		s = fmt.Sprint(v)
+		if v == nil {
+			s = ""
+		} else {
+			s = fmt.Sprint(v)
+		}
 	}
 	if _, err = fmt.Fprint(wr, " "); err != nil {
 		return err
@@ -191,7 +195,11 @@ func (tab *Table) Cells(wr io.Writer, colFrom, colTo int, v interface{}, props .
 	case fmt.Stringer:
 		s = t.String()
 	default:
-		s = fmt.Sprint(v)
+		if v == nil {
+			s = ""
+		} else {
+			s = fmt.Sprint(v)
+		}
 	}
 	if _, err = fmt.Fprint(wr, " "); err != nil {
 		return err

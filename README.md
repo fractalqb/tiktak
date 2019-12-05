@@ -77,3 +77,13 @@ any author of the software if numbers you get from the program are incorrect in 
      Avg:,10:40,12:00,00.00,01.33,00.86,00.47
      Count:,1,Sum:,00.00,01.33,00.86,00.47
 ```
+
+## Detailed Docs
+
+### Locating time record files
+
+### Template file for new months
+
+### Setting _now_
+
+### Micro Gaps

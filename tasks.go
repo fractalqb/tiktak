@@ -100,9 +100,9 @@ func (s *Span) Duration(now time.Time) (dt time.Duration, finite bool) {
 
 type Task struct {
 	parent *Task
-	Title  string           `json:"title,omitempty"`
-	Spans  []Span           `json:"spans,omitempty"`
-	Subs   map[string]*Task `json:"tasks,omitempty"`
+	Tags   map[string]string `json:"tags,omitempty"`
+	Spans  []Span            `json:"spans,omitempty"`
+	Subs   map[string]*Task  `json:"tasks,omitempty"`
 }
 
 func (t *Task) Path() []string {
@@ -142,7 +142,7 @@ func (t *Task) Get(path ...string) *Task {
 	return t
 }
 
-func (t *Task) Start(at time.Time) {
+func (t *Task) Start(at time.Time) bool {
 	ext := 0
 	for _, span := range t.Spans {
 		if span.Start.After(at) {
@@ -159,7 +159,9 @@ func (t *Task) Start(at time.Time) {
 	}
 	if ext == 0 {
 		t.Spans = append(t.Spans, Span{Start: at})
+		return true
 	}
+	return false
 }
 
 func (t *Task) WalkAll(
@@ -216,16 +218,22 @@ func (t *Task) Walk(
 }
 
 type CloseOpenSpans struct {
-	Stop time.Time
+	At     time.Time
+	Except []*Task
 }
 
 func (cos CloseOpenSpans) Do(tp []*Task, nmp []string) {
 	t := tp[len(tp)-1]
+	for _, e := range cos.Except {
+		if e == t {
+			return
+		}
+	}
 	for i := range t.Spans {
 		span := &t.Spans[i]
 		if span.Stop == nil {
 			log.Printf("in task %v close span %d starting %s", nmp, i, span.Start)
-			span.Stop = &cos.Stop
+			span.Stop = &cos.At
 		}
 	}
 }

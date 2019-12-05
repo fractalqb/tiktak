@@ -24,6 +24,7 @@ import (
 
 const (
 	envDDir     = "TIKTAK_DATA"
+	envTmpl     = "TIKTAK_TEMPLATE"
 	rPrefix     = "  "
 	clockFormat = "15:04"
 )
@@ -72,7 +73,12 @@ func loadTasks(t time.Time) *Task {
 	res := &Task{}
 	rd, err := os.Open(dataFile(t))
 	if err != nil {
-		log.Printf("cannot open '%s': %s", dataFile(t), err)
+		rd, err = os.Open(templateFile())
+		if err != nil {
+			log.Printf("cannot open '%s': %s", dataFile(t), err)
+		} else {
+			log.Printf("loading template file '%s'", templateFile())
+		}
 		return res
 	}
 	defer rd.Close()
@@ -140,10 +146,25 @@ func dataFile(t time.Time) string {
 	if dataFileNm == "" {
 		dataFileNm = t.Format("tiktak-2006-01.json")
 	}
-	if strings.IndexByte(dataFileNm, '/') >= 0 {
+	if strings.IndexRune(dataFileNm, filepath.Separator) >= 0 {
 		return dataFileNm
 	}
 	return filepath.Join(dir, dataFileNm)
+}
+
+func templateFile() string {
+	tmplFileNm := os.Getenv(envTmpl)
+	if tmplFileNm == "" {
+		tmplFileNm = "template.json"
+	}
+	if strings.IndexRune(tmplFileNm, filepath.Separator) >= 0 {
+		return tmplFileNm
+	}
+	if dir := os.Getenv(envDDir); dir == "" {
+		return tmplFileNm
+	} else {
+		return filepath.Join(dir, tmplFileNm)
+	}
 }
 
 type hm time.Duration
@@ -294,7 +315,7 @@ func main() {
 	doSave := false
 	switch {
 	case *stop:
-		root.WalkAll(nil, CloseOpenSpans{t}.Do)
+		root.WalkAll(nil, CloseOpenSpans{At: t}.Do)
 		doSave = true
 	case *report != "":
 		rep := reports[*report](lang, flag.Args())
@@ -314,7 +335,10 @@ func main() {
 		pstr := strings.TrimSpace(flag.Arg(0))
 		switch {
 		case pstr == "" || pstr == "/":
-			root.WalkAll(nil, CloseOpenSpans{t}.Do)
+			root.WalkAll(nil, CloseOpenSpans{
+				At:     t,
+				Except: []*Task{root},
+			}.Do)
 			root.Start(t)
 			doSave = true
 			fmt.Printf("switched to task '%s'\n", pathString(root.Path()))
@@ -324,7 +348,10 @@ func main() {
 			if task == nil {
 				log.Fatalf("no task '%s'", pstr)
 			}
-			root.WalkAll(nil, CloseOpenSpans{t}.Do)
+			root.WalkAll(nil, CloseOpenSpans{
+				At:     t,
+				Except: []*Task{task},
+			}.Do)
 			task.Start(t)
 			doSave = true
 			fmt.Printf("switched to task '%s'\n", pathString(task.Path()))
@@ -337,7 +364,10 @@ func main() {
 			if task == nil {
 				log.Fatalf("no task matches '%s'", pathString(pat))
 			}
-			root.WalkAll(nil, CloseOpenSpans{t}.Do)
+			root.WalkAll(nil, CloseOpenSpans{
+				At:     t,
+				Except: []*Task{task},
+			}.Do)
 			task.Start(t)
 			doSave = true
 			fmt.Printf("switched to task '%s'\n", pathString(task.Path()))

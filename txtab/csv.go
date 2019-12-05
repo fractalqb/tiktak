@@ -60,7 +60,9 @@ func (csv *Csv) Cell(wr io.Writer, width int, v interface{}, props ...interface{
 	} else {
 		csv.first = false
 	}
-	_, err = fmt.Fprint(wr, v)
+	if v != nil {
+		_, err = fmt.Fprint(wr, v)
+	}
 	return err
 }
 

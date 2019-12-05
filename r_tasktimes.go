@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -34,16 +35,13 @@ type taskTimesReport struct {
 
 func (rep taskTimesReport) Generate(root *Task, now time.Time) {
 	coll := collate.New(rep.lang)
-	var tpWidth, titleWidth int
+	var tpWidth, tagsWidth int
 	today := DaySpan(now)
 	thisWeek := WeekSpan(now)
 	runNo := 0
 	running := make(map[*Task]bool)
 	root.WalkAll(coll, func(tp []*Task, nmp []string) {
 		depth := len(tp) - 1
-		if w := utf8.RuneCountInString(tp[depth].Title); w > titleWidth {
-			titleWidth = w
-		}
 		pw := depth
 		for _, nm := range nmp {
 			pw += utf8.RuneCountInString(nm)
@@ -52,6 +50,9 @@ func (rep taskTimesReport) Generate(root *Task, now time.Time) {
 			tpWidth = pw
 		}
 		ct := tp[depth]
+		if tagsLen := utf8.RuneCountInString(tagsString(ct)); tagsLen > tagsWidth {
+			tagsWidth = tagsLen
+		}
 		run := false
 		for _, span := range ct.Spans {
 			run = run || span.Stop == nil
@@ -67,12 +68,15 @@ func (rep taskTimesReport) Generate(root *Task, now time.Time) {
 	fmt.Fprintf(tw.W, "TASK TIMES %s:\n", now.Format(dateFormat))
 	tw.AddColumn("⏲")
 	tw.AddColumn("Task", tpWidth)
-	if titleWidth > 0 {
-		tw.AddColumn("Title", titleWidth+2)
-	}
 	tw.AddColumn("Today", 5, txtab.Right)
 	tw.AddColumn("Week", 5, txtab.Right)
 	tw.AddColumn("Month", 6, txtab.Right)
+	if tagsWidth > 0 {
+		if tagsWidth < 4 {
+			tagsWidth = 4
+		}
+		tw.AddColumn("Tags", tagsWidth)
+	}
 	tw.Header()
 	tw.Hrule()
 	var sumAll, sumWeek, sumDay time.Duration
@@ -88,13 +92,6 @@ func (rep taskTimesReport) Generate(root *Task, now time.Time) {
 			tw.Cell("")
 		}
 		tw.Cell(pathString(nmp))
-		if titleWidth > 0 {
-			if ct.Title == "" {
-				tw.Cell("")
-			} else {
-				tw.Cell(`"` + ct.Title + `"`)
-			}
-		}
 		var durAll, durWeek, durDay time.Duration
 		for _, span := range ct.Spans {
 			d, _ := span.Duration(now)
@@ -120,6 +117,9 @@ func (rep taskTimesReport) Generate(root *Task, now time.Time) {
 			tw.Cell("")
 		}
 		tw.Cell(hm(durAll))
+		if tagsWidth > 0 {
+			tw.Cell(tagsString(ct))
+		}
 		tw.RowEnd()
 		sumAll += durAll
 		sumWeek += durWeek
@@ -127,16 +127,32 @@ func (rep taskTimesReport) Generate(root *Task, now time.Time) {
 	})
 	tw.Hrule()
 	tw.RowStart()
-	if titleWidth > 0 {
-		tw.Cells(3, "Sum:", txtab.Right)
-	} else {
-		tw.Cells(2, "Sum:", txtab.Right)
-	}
+	tw.Cells(2, "Sum:", txtab.Right)
 	tw.Cell(hm(sumDay))
 	tw.Cell(hm(sumWeek))
 	tw.Cell(hm(sumAll))
+	if tagsWidth > 0 {
+		tw.Cell(nil)
+	}
 	tw.RowEnd()
 	if runNo > 1 {
 		fmt.Printf("\n%s%d RUNNING TASKS\n", rPrefix, runNo)
 	}
+}
+
+func tagsString(t *Task) string {
+	if len(t.Tags) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sep := ""
+	for k, v := range t.Tags {
+		sb.WriteString(sep)
+		sb.WriteString(k)
+		if v != "" {
+			fmt.Fprintf(&sb, "='%s'", v)
+		}
+		sep = "; "
+	}
+	return sb.String()
 }
