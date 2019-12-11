@@ -27,24 +27,46 @@ func timeSheetFactory(lang language.Tag, args []string) Reporter {
 	return r
 }
 
-func allDays(t *Task) (days []Span) {
+type sheetDay struct {
+	Span
+	hasRunning bool
+}
+
+const flagStrMax = 1
+
+func (sd *sheetDay) FlagStr() string {
+	if sd.hasRunning {
+		return "↻"
+	}
+	return " "
+}
+
+func allDays(t *Task) (days []sheetDay, hasFlags bool) {
 	t.WalkAll(nil, func(tp []*Task, nmp []string) {
 		task := tp[len(tp)-1]
 	NEXT_SPAN:
 		for _, span := range task.Spans {
 			day := DaySpan(span.Start)
-			for _, d := range days {
+			for i := range days {
+				d := &days[i]
 				if day.Start == d.Start {
+					d.hasRunning = d.hasRunning || span.Stop == nil
+					hasFlags = hasFlags || d.hasRunning
 					continue NEXT_SPAN
 				}
 			}
-			days = append(days, day)
+			d := sheetDay{
+				Span:       day,
+				hasRunning: span.Stop == nil,
+			}
+			days = append(days, d)
+			hasFlags = hasFlags || d.hasRunning
 		}
 	})
 	sort.Slice(days, func(i, j int) bool {
 		return days[i].Start.Before(days[j].Start)
 	})
-	return days
+	return days, hasFlags
 }
 
 type timeSheetReport struct {
@@ -67,8 +89,11 @@ func (rep *timeSheetReport) accountOn(t *Task) string {
 }
 
 func (rep *timeSheetReport) Generate(root *Task, now time.Time) {
-	days := allDays(root)
+	days, hasFlags := allDays(root)
 	tw := &rep.tw
+	if hasFlags {
+		tw.AddColumn("⚐", flagStrMax, txtab.Center)
+	}
 	tw.AddColumn("Day", utf8.RuneCountInString(dateFormat))
 	tw.AddColumn("Start", 5, txtab.Right)
 	tw.AddColumn("Stop", 5, txtab.Right)
@@ -97,6 +122,9 @@ func (rep *timeSheetReport) Generate(root *Task, now time.Time) {
 			week = w
 		}
 		tw.RowStart()
+		if hasFlags {
+			tw.Cell(day.FlagStr())
+		}
 		tw.Cell(day.Start.Format(dateFormat))
 		var work *Span
 		var tdur time.Duration
@@ -108,7 +136,7 @@ func (rep *timeSheetReport) Generate(root *Task, now time.Time) {
 				if span.Stop == nil {
 					span.Stop = &now
 				}
-				today := IntersectSpans(&day, &span)
+				today := IntersectSpans(&day.Span, &span)
 				if d, _ := today.Duration(*today.Stop); d == 0 {
 					continue
 				} else {
@@ -154,6 +182,9 @@ func (rep *timeSheetReport) Generate(root *Task, now time.Time) {
 		stops /= dayNo
 		div := time.Duration(dayNo)
 		tw.RowStart()
+		if hasFlags {
+			tw.Cell(nil)
+		}
 		tw.Cell("Avg:", txtab.Right)
 		tw.Cell(fmt.Sprintf("%02d:%02d", starts/60, starts%60))
 		tw.Cell(fmt.Sprintf("%02d:%02d", stops/60, stops%60))
@@ -165,6 +196,9 @@ func (rep *timeSheetReport) Generate(root *Task, now time.Time) {
 		tw.RowEnd()
 	}
 	tw.RowStart()
+	if hasFlags {
+		tw.Cell(nil)
+	}
 	tw.Cell("Count:", txtab.Right)
 	tw.Cell(dayNo, txtab.Left)
 	tw.Cell("Sum:", txtab.Right)

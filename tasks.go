@@ -23,8 +23,9 @@ func PathMatch(path, pattern []string) bool {
 }
 
 type Span struct {
-	Start time.Time  `json:"start"`
-	Stop  *time.Time `json:"stop,omitempty"`
+	Start time.Time              `json:"start"`
+	Stop  *time.Time             `json:"stop,omitempty"`
+	Tags  map[string]interface{} `json:"tags,omitempty"`
 }
 
 func DaySpan(t time.Time) Span {
@@ -100,9 +101,9 @@ func (s *Span) Duration(now time.Time) (dt time.Duration, finite bool) {
 
 type Task struct {
 	parent *Task
-	Tags   map[string]string `json:"tags,omitempty"`
-	Spans  []Span            `json:"spans,omitempty"`
-	Subs   map[string]*Task  `json:"tasks,omitempty"`
+	Tags   map[string]interface{} `json:"tags,omitempty"`
+	Spans  []Span                 `json:"spans,omitempty"`
+	Subs   map[string]*Task       `json:"tasks,omitempty"`
 }
 
 func (t *Task) Path() []string {
@@ -164,6 +165,11 @@ func (t *Task) Start(at time.Time) bool {
 	return false
 }
 
+func (t *Task) DelSpan(i int) {
+	copy(t.Spans[i:], t.Spans[i+1:])
+	t.Spans = t.Spans[:len(t.Spans)-1]
+}
+
 func (t *Task) WalkAll(
 	coll *collate.Collator,
 	do func(tPath []*Task, nmPath []string),
@@ -217,25 +223,86 @@ func (t *Task) Walk(
 	walk(t)
 }
 
-type CloseOpenSpans struct {
-	At     time.Time
-	Except []*Task
-}
+type CloseAllOpen time.Time
 
-func (cos CloseOpenSpans) Do(tp []*Task, nmp []string) {
+func (cao CloseAllOpen) Do(tp []*Task, nmp []string) {
 	t := tp[len(tp)-1]
-	for _, e := range cos.Except {
-		if e == t {
-			return
-		}
-	}
 	for i := range t.Spans {
 		span := &t.Spans[i]
 		if span.Stop == nil {
 			log.Printf("in task %v close span %d starting %s", nmp, i, span.Start)
-			span.Stop = &cos.At
+			span.Stop = new(time.Time)
+			*span.Stop = time.Time(cao)
 		}
 	}
+}
+
+type UGap struct {
+	Task *Task
+	Span int
+}
+
+type FindUGaps struct {
+	To        time.Time
+	TooShort  []UGap
+	EndBefore []UGap
+}
+
+func (cfn *FindUGaps) Do(tp []*Task, nmp []string) {
+	t := tp[len(tp)-1]
+	for i := range t.Spans {
+		span := &t.Spans[i]
+		if span.Stop == nil {
+			if dt := cfn.To.Sub(span.Start); dt >= 0 && dt < microGap {
+				cfn.TooShort = append(cfn.TooShort, UGap{t, i})
+			}
+		} else if dt := cfn.To.Sub(*span.Stop); dt >= 0 && dt < microGap {
+			cfn.EndBefore = append(cfn.EndBefore, UGap{t, i})
+		}
+	}
+}
+
+func isExcept(t *Task, except []*Task) bool {
+	for _, e := range except {
+		if t == e {
+			return true
+		}
+	}
+	return false
+}
+
+func CloseForNext(root *Task, t time.Time, except ...*Task) time.Time {
+	gaps := FindUGaps{To: t}
+	root.WalkAll(nil, gaps.Do)
+	for _, eb := range gaps.EndBefore {
+		if isExcept(eb.Task, except) {
+			continue
+		}
+		*eb.Task.Spans[eb.Span].Stop = t
+		log.Printf("extending span %d of %s to close ugap", eb.Span, pathString(eb.Task.Path()))
+	}
+	for _, ts := range gaps.TooShort {
+		log.Printf("squash uspan %d of task %s", ts.Span, pathString(ts.Task.Path()))
+		ts.Task.DelSpan(ts.Span)
+	}
+	root.WalkAll(nil, func(tp []*Task, nmp []string) {
+		task := tp[len(tp)-1]
+		if isExcept(task, except) {
+			return
+		}
+		for i := range task.Spans {
+			span := &task.Spans[i]
+			if span.Stop == nil {
+				log.Printf("close span %d of %s starting %s",
+					i,
+					span.Start,
+					pathString(task.Path()))
+				span.Stop = new(time.Time)
+				*span.Stop = t
+			}
+		}
+	})
+	return t
 }
 
 var loc *time.Location

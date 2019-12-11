@@ -76,10 +76,10 @@ func loadTasks(t time.Time) *Task {
 		rd, err = os.Open(templateFile())
 		if err != nil {
 			log.Printf("cannot open '%s': %s", dataFile(t), err)
+			return res
 		} else {
 			log.Printf("loading template file '%s'", templateFile())
 		}
-		return res
 	}
 	defer rd.Close()
 	dec := json.NewDecoder(rd)
@@ -92,6 +92,9 @@ func loadTasks(t time.Time) *Task {
 		t := tp[depth]
 		if t.Subs == nil {
 			t.Subs = make(map[string]*Task)
+		}
+		if t.Tags == nil {
+			t.Tags = make(map[string]interface{})
 		}
 		if depth > 0 {
 			t.parent = tp[depth-1]
@@ -315,7 +318,7 @@ func main() {
 	doSave := false
 	switch {
 	case *stop:
-		root.WalkAll(nil, CloseOpenSpans{At: t}.Do)
+		root.WalkAll(nil, CloseAllOpen(t).Do)
 		doSave = true
 	case *report != "":
 		rep := reports[*report](lang, flag.Args())
@@ -335,10 +338,7 @@ func main() {
 		pstr := strings.TrimSpace(flag.Arg(0))
 		switch {
 		case pstr == "" || pstr == "/":
-			root.WalkAll(nil, CloseOpenSpans{
-				At:     t,
-				Except: []*Task{root},
-			}.Do)
+			t = CloseForNext(root, t, root)
 			root.Start(t)
 			doSave = true
 			fmt.Printf("switched to task '%s'\n", pathString(root.Path()))
@@ -348,10 +348,7 @@ func main() {
 			if task == nil {
 				log.Fatalf("no task '%s'", pstr)
 			}
-			root.WalkAll(nil, CloseOpenSpans{
-				At:     t,
-				Except: []*Task{task},
-			}.Do)
+			t = CloseForNext(root, t, task)
 			task.Start(t)
 			doSave = true
 			fmt.Printf("switched to task '%s'\n", pathString(task.Path()))
@@ -364,10 +361,7 @@ func main() {
 			if task == nil {
 				log.Fatalf("no task matches '%s'", pathString(pat))
 			}
-			root.WalkAll(nil, CloseOpenSpans{
-				At:     t,
-				Except: []*Task{task},
-			}.Do)
+			t = CloseForNext(root, t, task)
 			task.Start(t)
 			doSave = true
 			fmt.Printf("switched to task '%s'\n", pathString(task.Path()))

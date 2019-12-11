@@ -102,8 +102,10 @@ func (rep *byStartTimeReport) Generate(root *Task, now time.Time) {
 							tw.Cell("⇸" /*↪"*/)
 						} else if span.Start.After(*lastSpan.Stop) {
 							tw.Cell("⇢")
+						} else if d, _ := span.Duration(now); d < microGap {
+							tw.Cell("µ")
 						} else {
-							tw.Cell("")
+							tw.Cell(nil)
 						}
 						*lastSpan = span
 					}

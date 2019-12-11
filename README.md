@@ -21,8 +21,8 @@ any author of the software if numbers you get from the program are incorrect in 
       `go get -u git.fractalqb.de/fractalqb/tiktak`
 - Put the `tiktak` executable in your path. (You pretend to be a terminal user, i.e.
    I won't have to explain…)
-- Decide where to keep your time record files, let's say `$HOME/.local/share/tiktak`.
-   (Non UN!X users are on there own here. But you're a terminal user… I told you) Otherwise, your
+- Decide where to keep your time record files, let's say `$HOME/.local/share/tiktak` (Non UN!X
+   users are on their own here. But you're a terminal user… you remember). Otherwise, your
    files will be lying around wherever your current working dir is.
 - Set the `TIKTAK_DATA` environment variable to the directory `$HOME/.local/share/tiktak`
 - Start working on _something cool_, i.e. type `tiktak /something/cool` in your terminal. This will
