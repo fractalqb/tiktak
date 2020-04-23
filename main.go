@@ -25,6 +25,7 @@ import (
 const (
 	envDDir     = "TIKTAK_DATA"
 	envTmpl     = "TIKTAK_TEMPLATE"
+	envUGap     = "TIKTAK_UGAP"
 	rPrefix     = "  "
 	clockFormat = "15:04"
 )
@@ -137,7 +138,7 @@ func saveTasks(filename string, root *Task) {
 
 var (
 	dataFileNm string
-	microGap   time.Duration
+	microGap   = 1 * time.Minute
 	flagLang   string
 )
 
@@ -289,10 +290,30 @@ func parseTime(tstr string) time.Time {
 		0, n.Location())
 }
 
+func parseDuration(s string) (time.Duration, error) {
+	r := regexp.MustCompile(`^(\d+)([smh]?)$`)
+	match := r.FindStringSubmatch(s)
+	if match == nil {
+		return 0, fmt.Errorf("invalid duration: '%s'", s)
+	}
+	res := time.Minute
+	switch match[2] {
+	case "s":
+		res = time.Second
+	case "h":
+		res = time.Hour
+	}
+	n, err := strconv.Atoi(match[1])
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(n) * res, nil
+}
+
 func main() {
 	flag.Usage = usage
 	flag.StringVar(&dataFileNm, "f", "", flagDocFile)
-	flag.DurationVar(&microGap, "ugap", time.Minute, flagDocUgap)
+	ugapFlag := flag.Duration("ugap", 0, flagDocUgap)
 	flag.StringVar(&flagLang, "lang", "", flagDocLang)
 	flag.StringVar(&timeFmt, "d", "m", flagDocDurFmt)
 	stop := flag.Bool("zzz", false, flagDocZzz)
@@ -303,6 +324,14 @@ func main() {
 	//title := flag.String("title", "", "set task's title")
 	report := flag.String("r", "", flagDocReport())
 	flag.Parse()
+	if *ugapFlag > 0 {
+		microGap = *ugapFlag
+	} else if ugap := os.Getenv(envUGap); ugap != "" {
+		var err error
+		if microGap, err = parseDuration(ugap); err != nil {
+			log.Fatal(err)
+		}
+	}
 	t := parseTime(*flagNow)
 	if *printFile {
 		fmt.Println(dataFile(t))
