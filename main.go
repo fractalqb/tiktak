@@ -103,6 +103,11 @@ func loadTasks(t time.Time) *Task {
 		sort.Slice(t.Spans, func(i, j int) bool {
 			return t.Spans[i].Start.Before(t.Spans[j].Start)
 		})
+		for _, span := range t.Spans {
+			if span.Stop != nil && span.Stop.Before(span.Start) {
+				log.Fatalf("task %v: negative span starts %s", p, span.Start)
+			}
+		}
 	})
 	return res
 }

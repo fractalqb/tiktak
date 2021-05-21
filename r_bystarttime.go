@@ -76,7 +76,7 @@ func (rep *byStartTimeReport) Generate(root *Task, now time.Time) {
 	day := 0
 	var lastSpan *Span
 	for _, start := range starts {
-		thisDay := 100*start.Year() + start.YearDay()
+		thisDay := 1000*start.Year() + start.YearDay() // distinct per day
 		if thisDay != day {
 			tw.Hrule()
 			tw.RowStart()
@@ -96,6 +96,10 @@ func (rep *byStartTimeReport) Generate(root *Task, now time.Time) {
 						lastSpan = new(Span)
 						*lastSpan = span
 					} else {
+						if lastSpan.Stop == nil {
+							fmt.Println(lastSpan)
+							fmt.Println(span)
+						}
 						is := IntersectSpans(lastSpan, &span)
 						d, fin := is.Duration(now)
 						if !fin || d > 0 {
