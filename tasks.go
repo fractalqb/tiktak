@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	"git.fractalqb.de/fractalqb/tiktak/tmth"
 	"golang.org/x/text/collate"
 )
 
@@ -30,20 +31,20 @@ type Span struct {
 
 func DaySpan(t time.Time) Span {
 	res := Span{
-		Start: time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc),
+		Start: tmth.StartDay(t, 0, nil),
 		Stop:  new(time.Time),
 	}
-	*res.Stop = res.Start.Add(24 * time.Hour)
+	*res.Stop = tmth.AddDay(res.Start, 1, nil)
 	return res
 }
 
 // TODO Week always starts monday
 func WeekSpan(t time.Time) Span {
-	for t.Weekday() != time.Monday {
-		t = t.Add(-24 * time.Hour)
+	res := Span{
+		Start: tmth.StartDay(tmth.LastDay(time.Monday, t, nil), 0, nil),
+		Stop:  new(time.Time),
 	}
-	res := DaySpan(t)
-	*res.Stop = res.Stop.Add(6 * 24 * time.Hour)
+	*res.Stop = tmth.AddDay(res.Start, 7, nil)
 	return res
 }
 
@@ -303,10 +304,4 @@ func CloseForNext(root *Task, t time.Time, except ...*Task) time.Time {
 		}
 	})
 	return t
-}
-
-var loc *time.Location
-
-func init() {
-	loc, _ = time.LoadLocation("Local")
 }
