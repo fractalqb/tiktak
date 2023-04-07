@@ -1,4 +1,4 @@
-package tmth
+package tiktak
 
 import (
 	"fmt"
