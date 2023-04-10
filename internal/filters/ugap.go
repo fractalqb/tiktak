@@ -1,6 +1,7 @@
 package filters
 
 import (
+	"fmt"
 	"time"
 
 	"git.fractalqb.de/fractalqb/tiktak"
@@ -11,16 +12,12 @@ type MicroGap struct {
 }
 
 func (f *MicroGap) Filter(tl *tiktak.TimeLine) error {
-	i := 0
-	for i < len(*tl) {
-		sw := (*tl)[i]
+	for _, sw := range *tl {
 		d := sw.Duration()
-		if d < 0 || d >= f.Gap {
-			i++
-			continue
+		if d >= 0 && d < f.Gap {
+			sw.FilterNotes(func(n tiktak.Note) bool { return n.Sym != 'µ' })
+			sw.AddWarning('µ', fmt.Sprintf("µ-Gap %s < %s", d, f.Gap))
 		}
-		tl.DelSwitch(i)
-		tl.Switch(sw.When().Add(d/2), (*tl)[i].Task())
 	}
 	return nil
 }

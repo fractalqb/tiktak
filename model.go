@@ -25,7 +25,7 @@ func (t *Task) Subtasks() []*Task { return t.subs }
 
 func (t *Task) Is(in *Task) bool {
 	if in == nil {
-		return false
+		return t == nil
 	}
 	for t != nil {
 		if t == in {
@@ -287,6 +287,48 @@ func (s *Switch) When() time.Time { return s.when }
 func (s *Switch) Next() *Switch   { return s.next }
 func (s *Switch) Notes() []Note   { return s.notes }
 
+func (s *Switch) SelectNotes(idxs []int, f func(Note) bool) []int {
+	for i, note := range s.notes {
+		if f(note) {
+			idxs = append(idxs, i)
+		}
+	}
+	return idxs
+}
+
+func (s *Switch) AddNote(text string) (i int) {
+	i = len(s.notes)
+	s.notes = append(s.notes, Note{Text: text})
+	return i
+}
+
+func (s *Switch) AddWarning(sym rune, text string) (i int) {
+	i = len(s.notes)
+	s.notes = append(s.notes, Note{Sym: sym, Text: text})
+	return i
+}
+
+func (s *Switch) DelNote(i int) {
+	if len(s.notes) == 0 {
+		return
+	}
+	if i < 0 {
+		i += len(s.notes)
+	}
+	copy(s.notes[i:], s.notes[i+1:])
+	s.notes = s.notes[:len(s.notes)-1]
+}
+
+func (s *Switch) FilterNotes(f func(Note) bool) {
+	var tmp []Note
+	for _, note := range s.notes {
+		if f(note) {
+			tmp = append(tmp, note)
+		}
+	}
+	s.notes = tmp
+}
+
 func Infinite(d time.Duration) bool { return d < 0 }
 
 func (s *Switch) Duration() time.Duration {
@@ -521,6 +563,16 @@ func (tl *TimeLine) Del(at time.Time, pre, post func(int, *Switch, time.Duration
 		}
 	}
 }
+
+func SameTask(t *Task) func(*Switch) bool {
+	return func(sw *Switch) bool { return sw.Task() == t }
+}
+
+func IsATask(t *Task) func(*Switch) bool {
+	return func(sw *Switch) bool { return sw.Task().Is(t) }
+}
+
+func AnyTask(sw *Switch) bool { return sw.Task() != nil }
 
 // Duration computes the sum of durations of all time line switches filtered by
 // f. If now switch was considered, s will be zero. Otherwise it is the time of

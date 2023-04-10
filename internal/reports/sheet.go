@@ -71,10 +71,20 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 	if len(sht.Tasks) > 0 {
 		crsr.SetString("Rest", tiktbl.Left, Bold())
 	}
-	if day.Weekday() == sht.WeekStart {
+	weekSep := func(t time.Time) {
+		_, w := t.ISOWeek()
+		crsr.SetString(
+			fmt.Sprintf(" Week %d ", w),
+			tiktbl.SpanAll,
+			tiktbl.Center,
+			tiktbl.Pad('-'),
+		).NextRow()
+	}
+	if day.Weekday() != sht.WeekStart {
 		crsr.NextRow()
+		weekSep(day)
 	} else {
-		crsr.NextRow().SetString("", tiktbl.SpanAll, tiktbl.Pad('-')).NextRow()
+		crsr.NextRow()
 	}
 	tsums, tmap := accounts(sht.Tasks)
 	count, stopCount := 0, 0
@@ -83,7 +93,7 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 	for day.Before(end) {
 		style := tiktbl.NoStyle()
 		next := tiktak.StartDay(day, 1, loc)
-		d, ds, de := tl.Duration(day, next, now, func(s *tiktak.Switch) bool { return s.Task() != nil })
+		d, ds, de := tl.Duration(day, next, now, tiktak.AnyTask)
 		stop := "..."
 		if !de.IsZero() {
 			stop = fmts.Clock(de)
@@ -92,13 +102,14 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		} else {
 			style = Bold()
 		}
-		p, _, _ := tl.Duration(ds, de, now, func(s *tiktak.Switch) bool { return s.Task() == nil })
+		p, _, _ := tl.Duration(ds, de, now, tiktak.IsATask(nil))
 
 		if day.Weekday() == sht.WeekStart {
 			_, w := day.ISOWeek()
 			crsr.SetString(
-				fmt.Sprintf("-- Week %d ", w),
+				fmt.Sprintf(" Week %d ", w),
 				tiktbl.SpanAll,
+				tiktbl.Center,
 				tiktbl.Pad('-'),
 			).NextRow()
 		}
