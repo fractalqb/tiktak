@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"git.fractalqb.de/fractalqb/tiktak/cmd"
 	"git.fractalqb.de/fractalqb/tiktak/internal/reports"
 	"git.fractalqb.de/fractalqb/tiktak/tiktbl"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -27,6 +30,8 @@ var (
 			Layout  string
 		}
 		StartOfWeek time.Weekday
+		Filters     map[string][]string
+		Filter      string
 	}{
 		StartOfWeek: time.Monday, // Corresponds to ISO weeks
 	}
@@ -81,8 +86,18 @@ Config path: .Formats`,
 		`Select report layout: term, csv
 Config path: .Report.Layout`,
 	)
+	flag.StringVar(&cfg.Filter, "x", cfg.Filter,
+		"Select filter to apply before saving or writing reports.",
+	)
+	dumpConfig := flag.Bool("dump-config", false,
+		"Dump config to stdout and exit.",
+	)
 	flag.BoolVar(&cfg.Verbose, "v", cfg.Verbose, "Request verbose output.")
 	flag.Parse()
+	if *dumpConfig {
+		yaml.NewEncoder(os.Stdout).Encode(&cfg)
+		os.Exit(0)
+	}
 	if *nowStr != "" {
 		now = mustRet(cmd.ParseTime(*nowStr))
 	} else {
@@ -185,6 +200,7 @@ func mustRet[T any](v T, err error) T {
 }
 
 func write(file string) {
+	runFilter(cfg.Filter)
 	if file == "-" {
 		must(tiktak.Write(os.Stdout, tmln))
 		return
@@ -243,6 +259,7 @@ func match(t *tiktak.Task, s string) []*tiktak.Task {
 }
 
 func showReport() {
+	runFilter(cfg.Filter)
 	switch cfg.Report.Default {
 	case "", "plain":
 		tiktak.Write(os.Stdout, tmln)
@@ -273,23 +290,53 @@ func showInfos() {
 	case "m", "match":
 		read()
 		var tbl tiktbl.Data
-		crsr := tbl.At(0, 0).With(reports.Bold()).
-			SetStrings("Match", "Task", "Title").
-			NextRow()
-		for _, arg := range flag.Args() {
-			matches := match(&troot, arg)
-			if len(matches) == 0 {
-				crsr.SetStrings(arg, "-").NextRow()
-			} else {
-				for _, m := range matches {
-					crsr.SetStrings(arg, m.String(), m.Title()).NextRow()
+		if cfg.Verbose {
+			crsr := tbl.At(0, 0).With(reports.Bold()).
+				SetStrings("Match", "Task", "Title").
+				NextRow()
+			for _, arg := range flag.Args() {
+				matches := match(&troot, arg)
+				if len(matches) == 0 {
+					crsr.SetStrings(arg, "-").NextRow()
+				} else {
+					for _, m := range matches {
+						crsr.SetStrings(arg, m.String(), m.Title()).NextRow()
+					}
+				}
+			}
+			tblwr.Write(os.Stdout, &tbl)
+		} else {
+			seen := make(map[*tiktak.Task]bool)
+			for _, arg := range flag.Args() {
+				matches := match(&troot, arg)
+				for _, t := range matches {
+					if !seen[t] {
+						seen[t] = true
+						fmt.Println(t.String())
+					}
 				}
 			}
 		}
-		tblwr.Write(os.Stdout, &tbl)
 	default:
 		log.Fatalf("invalid info request: '%s'", info)
 	}
 }
 
 func reptCfg() reports.Report { return reports.Report{Layout: tblwr, Fmts: fmts} }
+
+func runFilter(name string) {
+	if name == "" {
+		return
+	}
+	cmdArgs := cfg.Filters[name]
+	if len(cmdArgs) == 0 {
+		log.Fatalf("unknown filter '%s'", name)
+	}
+	var buf bytes.Buffer
+	must(tiktak.Write(&buf, tmln))
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+	cmd.Stdin = &buf
+	cmd.Stderr = os.Stderr
+	data := mustRet(cmd.Output())
+	tmln = mustRet(tiktak.Read(bytes.NewReader(data), &troot))
+}

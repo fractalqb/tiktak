@@ -90,10 +90,19 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 	count, stopCount := 0, 0
 	var workSum, breakSum, restSum time.Duration
 	var starts, stops time.Duration
+	var notes []int
 	for day.Before(end) {
+		if day.Weekday() == sht.WeekStart {
+			weekSep(day)
+		}
+
 		style := tiktbl.NoStyle()
 		next := tiktak.StartDay(day, 1, loc)
 		d, ds, de := tl.Duration(day, next, now, tiktak.AnyTask)
+		if d == 0 {
+			day = next
+			continue
+		}
 		stop := "..."
 		if !de.IsZero() {
 			stop = fmts.Clock(de)
@@ -104,18 +113,13 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		}
 		p, _, _ := tl.Duration(ds, de, now, tiktak.IsATask(nil))
 
-		if day.Weekday() == sht.WeekStart {
-			_, w := day.ISOWeek()
-			crsr.SetString(
-				fmt.Sprintf(" Week %d ", w),
-				tiktbl.SpanAll,
-				tiktbl.Center,
-				tiktbl.Pad('-'),
-			).NextRow()
+		if hasWarning(tl, day, next, tiktak.AnyTask) {
+			crsr.SetString(fmts.ShortDate(day), tiktbl.AddStyles(style, Warn()))
+		} else {
+			crsr.SetString(fmts.ShortDate(day), style)
 		}
 
 		crsr.With(style).SetStrings(
-			fmts.ShortDate(day),
 			fmts.Clock(ds),
 			stop,
 			fmts.Duration(p),
@@ -124,17 +128,30 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 
 		rest := d
 		for i, t := range sht.Tasks {
+			warns := false
 			td, _, _ := tl.Duration(day, next, now, func(s *tiktak.Switch) bool {
 				st := s.Task()
 				if st == nil {
-					return t == nil
+					if t == nil {
+						notes := s.SelectNotes(notes[:0], tiktak.Warning)
+						warns = warns || len(notes) > 0
+						return true
+					}
+				} else if tmap[st] == t {
+					notes := s.SelectNotes(notes[:0], tiktak.Warning)
+					warns = warns || len(notes) > 0
+					return true
 				}
-				return tmap[st] == t
+				return false
 			})
 			if td == 0 {
 				crsr.SetString("-", tiktbl.Center)
 			} else {
-				crsr.SetString(fmts.Duration(td))
+				if warns {
+					crsr.SetString(fmts.Duration(td), Warn())
+				} else {
+					crsr.SetString(fmts.Duration(td))
+				}
 				tsums[i].n++
 				tsums[i].d += td
 				rest -= td
@@ -181,13 +198,13 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 	crsr.NextRow().
 		SetString("Count:", tiktbl.Right, Bold()).Set(count).
 		SetString("Sum:", Bold()).
-		SetStrings(fmts.Duration(breakSum), fmts.Duration(workSum))
+		With(Underline()).SetStrings(fmts.Duration(breakSum), fmts.Duration(workSum))
 	for _, ts := range tsums {
-		crsr.SetString(fmts.Duration(ts.d))
+		crsr.SetString(fmts.Duration(ts.d), Underline())
 	}
 	if len(tsums) > 0 {
 		if count > 0 {
-			crsr.SetString(fmts.Duration(restSum))
+			crsr.SetString(fmts.Duration(restSum), Underline())
 		} else {
 			crsr.SetString("-", tiktbl.Center)
 		}

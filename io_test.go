@@ -20,6 +20,7 @@ func ExampleRead() {
 	}
 	Write(os.Stdout, ts)
 	// Output:
+	// v1.0.0	tiktak time tracker
 	// /1
 	// /2
 	// /3 Just to test titles

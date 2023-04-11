@@ -36,10 +36,18 @@ func (t *Task) Is(in *Task) bool {
 	return false
 }
 
+func cmprName(n, m string) int {
+	c := strings.Compare(strings.ToLower(n), strings.ToLower(m))
+	if c == 0 {
+		c = strings.Compare(n, m)
+	}
+	return c
+}
+
 func (t *Task) Get(path ...string) *Task {
 	for _, n := range path {
 		l := len(t.subs)
-		i := sort.Search(l, func(i int) bool { return t.subs[i].name >= n })
+		i := sort.Search(l, func(i int) bool { return cmprName(t.subs[i].name, n) >= 0 })
 		if i == l {
 			nt := &Task{
 				parent: t,
@@ -87,7 +95,7 @@ func (t *Task) Find(tip bool, path ...string) *Task {
 			return nil
 		}
 		l := len(t.subs)
-		i := sort.Search(l, func(i int) bool { return t.subs[i].name >= n })
+		i := sort.Search(l, func(i int) bool { return cmprName(t.subs[i].name, n) >= 0 })
 		if i == l {
 			return nil
 		} else if st := t.subs[i]; st.Name() != n {
@@ -286,6 +294,8 @@ func (s *Switch) Task() *Task     { return s.to }
 func (s *Switch) When() time.Time { return s.when }
 func (s *Switch) Next() *Switch   { return s.next }
 func (s *Switch) Notes() []Note   { return s.notes }
+
+func Warning(n Note) bool { return n.Sym != 0 }
 
 func (s *Switch) SelectNotes(idxs []int, f func(Note) bool) []int {
 	for i, note := range s.notes {
