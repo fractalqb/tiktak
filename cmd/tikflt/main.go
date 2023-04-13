@@ -19,8 +19,9 @@ type filter interface {
 }
 
 var filters = map[string]func() filter{
-	"round": func() filter { return new(stdFilter.Round) },
-	"ugap":  func() filter { return new(stdFilter.MicroGap) },
+	"round":   func() filter { return new(stdFilter.Round) },
+	"ugap":    func() filter { return new(stdFilter.MicroGap) },
+	"dearbzg": func() filter { return new(stdFilter.DEArbZG) },
 }
 
 func main() {

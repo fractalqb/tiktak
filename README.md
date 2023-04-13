@@ -81,6 +81,20 @@ Count:;1;Sum:;00:00;01:20;00:31;00:19;00:29
 
 ## Detailed Docs
 
+### Build from Source
+
+- Be sure to have [Go SDK installed](https://go.dev/doc/install). The most
+  recent one should work. In case of doubt, the minimum required version is in
+  `go.mod`.
+
+- Clone the repo: `git clone https://github.com/fractalqb/tiktak.git`
+
+- Enter the project dir: `cd tiktak`
+
+- Run `go run mk/mk.go` and find the executables in `./cmd/tik*`
+
+- To use Go's standard install, run `go run mk/mk.go -install`
+
 ### Locating time record files
 
 tiktak keeps its files in a single directory. If you don't do nothing, tiktak

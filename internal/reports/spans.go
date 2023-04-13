@@ -27,7 +27,7 @@ func (spans *Spans) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		day tiktak.Date
 	)
 	crsr := tbl.At(0, 0)
-	for _, s := range tl {
+	for i, s := range tl {
 		if s.Task() == nil && s.Next() == nil {
 			continue
 		}
@@ -68,6 +68,9 @@ func (spans *Spans) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 			sort.Slice(flags, func(i, j int) bool { return flags[i] < flags[j] })
 			style = tiktbl.AddStyles(style, Warn())
 		}
+		if spans.Verbose {
+			crsr.SetString(SpanID(i), tiktbl.Right)
+		}
 		crsr = crsr.With(style).SetStrings(
 			string(flags),
 			fmts.Clock(s.When()),
@@ -90,6 +93,7 @@ func (spans *Spans) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 			}
 		}
 	}
+	tbl.Align(tiktbl.Left, 0)
 	tbl.Align(tiktbl.Right, 3)
 	spans.Layout.Write(w, &tbl)
 }

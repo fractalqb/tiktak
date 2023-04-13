@@ -8,4 +8,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require golang.org/x/mod v0.10.0
+require (
+	git.fractalqb.de/fractalqb/gomk v0.10.0
+	golang.org/x/mod v0.10.0
+)

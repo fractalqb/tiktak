@@ -78,6 +78,7 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 			tiktbl.SpanAll,
 			tiktbl.Center,
 			tiktbl.Pad('-'),
+			Muted(),
 		).NextRow()
 	}
 	if day.Weekday() != sht.WeekStart {
@@ -111,7 +112,15 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		} else {
 			style = Bold()
 		}
-		p, _, _ := tl.Duration(ds, de, now, tiktak.IsATask(nil))
+		if ds.Weekday() == time.Friday {
+			fmt.Println(ds, de, now)
+		}
+		var p time.Duration
+		if de.IsZero() {
+			p, _, _ = tl.Duration(ds, now, now, tiktak.IsATask(nil))
+		} else {
+			p, _, _ = tl.Duration(ds, de, now, tiktak.IsATask(nil))
+		}
 
 		if hasWarning(tl, day, next, tiktak.AnyTask) {
 			crsr.SetString(fmts.ShortDate(day), tiktbl.AddStyles(style, Warn()))

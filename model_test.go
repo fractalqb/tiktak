@@ -50,6 +50,55 @@ func expectTL(t *testing.T, tl TimeLine, sws ...sw) error {
 	return nil
 }
 
+func testTL(ps ...int) (now time.Time, d time.Duration, tl TimeLine, ts []*Task) {
+	root := new(Task)
+	d = 15 * time.Minute
+	now = time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC)
+	for i, p := range ps {
+		t := root.Get(fmt.Sprintf("task%d", i))
+		tl.Switch(now.Add(time.Duration(p)*d), t)
+		ts = append(ts, t)
+	}
+	return now, d, tl, ts
+}
+
+func TestTimeLine_Pick(t *testing.T) {
+	var tasks Task
+	var tl TimeLine
+	ts := time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC)
+	ti := tl.Switch(ts, tasks.Get("foo"))
+	if n := tl[ti].Task().Name(); n != "foo" {
+		t.Fatalf("wrong task '%s'", n)
+	}
+	t.Run("before", func(t *testing.T) {
+		pi, pt := tl.Pick(ts.Add(-time.Second))
+		if pi != -1 {
+			t.Errorf("unexpected index %d, want -1", pi)
+		}
+		if pt != nil {
+			t.Errorf("illegal task: %+v", pt)
+		}
+	})
+	t.Run("same", func(t *testing.T) {
+		pi, pt := tl.Pick(ts)
+		if pi != ti {
+			t.Errorf("unexpected index %d, want %d", pi, ti)
+		}
+		if pt == nil {
+			t.Error("empty switch to task")
+		}
+	})
+	t.Run("after", func(t *testing.T) {
+		pi, pt := tl.Pick(ts.Add(time.Second))
+		if pi != ti {
+			t.Errorf("unexpected index %d, want %d", pi, ti)
+		}
+		if pt == nil {
+			t.Error("empty switch to task")
+		}
+	})
+}
+
 func TestTimeLine_Switch(t *testing.T) {
 	now := time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC)
 	dt := func(d int) time.Time { return now.Add(time.Duration(d) * time.Minute) }
@@ -179,6 +228,58 @@ func TestTimeLine_Switch(t *testing.T) {
 	})
 }
 
+func TestTimeLine_Insert(t *testing.T) {
+	t.Run("1st insert", func(t *testing.T) {
+		now := time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC)
+		dt := 15 * time.Minute
+		var tasks Task
+		var tl TimeLine
+		tt := tasks.Get("task0")
+		tl.Insert(now, tt, -dt, AllSwitch, dt, AllSwitch)
+		expectTL(t, tl,
+			sw{now.Add(-dt), tt},
+			sw{now.Add(dt), nil},
+		)
+	})
+	t.Run("insert between", func(t *testing.T) {
+		now, d, tl, ts := testTL(-1, 1)
+		tt := tl.RootTask().Get("test")
+		tl.Insert(now, tt, -d, AllSwitch, d, AllSwitch)
+		expectTL(t, tl,
+			sw{now.Add(-2 * d), ts[0]},
+			sw{now.Add(-d), tt},
+			sw{now.Add(2 * d), ts[1]},
+		)
+	})
+	t.Run("insert at start", func(t *testing.T) {
+		now, d, tl, ts := testTL(-1, 0, 1)
+		tt := tl.RootTask().Get("test")
+		td := 2 * time.Minute
+		tl.Insert(now, tt, -td, AllSwitch, td, AllSwitch)
+		expectTL(t, tl,
+			sw{now.Add(-d - td), ts[0]},
+			sw{now.Add(-td), tt},
+			sw{now.Add(td), ts[1]},
+			sw{now.Add(d + td), ts[2]},
+		)
+	})
+}
+
+func TestTime_DelSwitch(t *testing.T) {
+	var rt Task
+	t0, tt := rt.Get("tast0"), rt.Get("test")
+	var tl TimeLine
+	now := time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC)
+	d := 15 * time.Minute
+	tl.Switch(now.Add(-d), t0)
+	tl.Switch(now, tt)
+	tl.Switch(now.Add(d), t0)
+	if err := tl.DelSwitch(1); err != nil {
+		t.Fatal(err)
+	}
+	expectTL(t, tl, sw{now.Add(-d), t0})
+}
+
 func TestTimeLine_Del(t *testing.T) {
 	var rt Task
 	var tl TimeLine
@@ -187,48 +288,11 @@ func TestTimeLine_Del(t *testing.T) {
 	tl.Switch(now.Add(-30*time.Minute), t0)
 	tl.Switch(now, t1)
 	tl.Switch(now.Add(30*time.Minute), t2)
-	tl.Del(now.Add(10*time.Minute), ShiftAll, ShiftAll)
+	tl.Del(now.Add(10*time.Minute), AllSwitch, AllSwitch)
 	expectTL(t, tl,
 		sw{now.Add(-20 * time.Minute), t0},
 		sw{now.Add(10 * time.Minute), t2},
 	)
-}
-
-func TestTimeLine_Pick(t *testing.T) {
-	var tasks Task
-	var tl TimeLine
-	ts := time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC)
-	ti := tl.Switch(ts, tasks.Get("foo"))
-	if n := tl[ti].Task().Name(); n != "foo" {
-		t.Fatalf("wrong task '%s'", n)
-	}
-	t.Run("before", func(t *testing.T) {
-		pi, pt := tl.Pick(ts.Add(-time.Second))
-		if pi != -1 {
-			t.Errorf("unexpected index %d, want -1", pi)
-		}
-		if pt != nil {
-			t.Errorf("illegal task: %+v", pt)
-		}
-	})
-	t.Run("same", func(t *testing.T) {
-		pi, pt := tl.Pick(ts)
-		if pi != ti {
-			t.Errorf("unexpected index %d, want %d", pi, ti)
-		}
-		if pt == nil {
-			t.Error("empty switch to task")
-		}
-	})
-	t.Run("after", func(t *testing.T) {
-		pi, pt := tl.Pick(ts.Add(time.Second))
-		if pi != ti {
-			t.Errorf("unexpected index %d, want %d", pi, ti)
-		}
-		if pt == nil {
-			t.Error("empty switch to task")
-		}
-	})
 }
 
 func ExampleTimeLine() {

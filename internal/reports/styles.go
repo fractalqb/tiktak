@@ -29,7 +29,7 @@ func Underline() tiktbl.Styler {
 }
 
 func Muted() tiktbl.Styler {
-	return tiktbl.Style(func(s string) string { return color.InBlue(s) })
+	return tiktbl.Style(func(s string) string { return color.InCyan(s) })
 }
 
 func Warn() tiktbl.Styler {

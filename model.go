@@ -361,13 +361,21 @@ func (s *Switch) reset() {
 
 type TimeLine []*Switch
 
-func (ts TimeLine) FirstTask() *Task {
-	for _, s := range ts {
+func (tl TimeLine) FirstTask() *Task {
+	for _, s := range tl {
 		if t := s.Task(); t != nil {
 			return t
 		}
 	}
 	return nil
+}
+
+func (tl TimeLine) RootTask() *Task {
+	t := tl.FirstTask()
+	if t == nil {
+		return nil
+	}
+	return t.Root()
 }
 
 // Pick returns the latest task switch that happens at or before t. If t is
@@ -527,45 +535,124 @@ func (tl *TimeLine) Reschedule(i int, to time.Time) error {
 	return nil
 }
 
-func (tl *TimeLine) DelSwitch(i int) {
+type SelectSwitch = func(int, *Switch) bool
+
+func AllSwitch(int, *Switch) bool { return true }
+
+func NonNilTask(_ int, sw *Switch) bool {
+	return sw.Task() != nil
+}
+
+func (tl *TimeLine) Insert(
+	at time.Time, to *Task,
+	dtPast time.Duration, swPast SelectSwitch,
+	dtFutr time.Duration, swFutr SelectSwitch,
+) int {
+	if dtPast > 0 {
+		dtPast = 0
+	}
+	if dtFutr < 0 {
+		dtFutr = 0
+	}
+	i, sw := tl.Pick(at)
+	if dtPast < 0 && i >= 0 {
+		mi := i
+		if at.Equal(sw.When()) {
+			mi--
+		}
+		var t time.Time
+		for mi >= 0 && swPast(mi, (*tl)[mi]) {
+			t = (*tl)[mi].when.Add(dtPast)
+			(*tl)[mi].when = t
+			mi--
+		}
+		if !t.IsZero() {
+			for mi >= 0 && !(*tl)[mi].When().Before(t) {
+				tl.DelSwitch(mi)
+				mi--
+				i--
+			}
+		}
+		if (*tl)[i] != sw {
+			panic("failed to compute switch index")
+		}
+	}
+	if dtFutr > 0 {
+		mi := i
+		if mi < 0 {
+			mi = 0
+		} else if at.After(sw.When()) {
+			mi++
+		}
+		var t time.Time
+		for mi < len(*tl) && swFutr(mi, (*tl)[mi]) {
+			t := (*tl)[mi].when.Add(dtFutr)
+			(*tl)[mi].when = t
+			mi++
+		}
+		if !t.IsZero() {
+			for mi < len(*tl) && !t.Before((*tl)[mi].When()) {
+				tl.DelSwitch(mi)
+			}
+		}
+	}
+	i = tl.Switch(at.Add(dtPast), to)
+	if i+1 == len(*tl) {
+		tl.Switch(at.Add(dtFutr), nil)
+	}
+	return i
+}
+
+func (tl *TimeLine) DelSwitch(i int) error {
+	if i < 0 || i >= len(*tl) {
+		return fmt.Errorf("invalid switch index: %d", i)
+	}
 	if i == 0 {
 		(*tl)[i].next = nil
 		(*tl)[i] = nil
 		*tl = (*tl)[1:]
-		return
+		return nil
 	}
-	(*tl)[i-1].next = (*tl)[i].next
-	copy((*tl)[i:], (*tl)[i+1:])
-	*tl = (*tl)[:len(*tl)-1]
+	pSw, dSw := (*tl)[i-1], (*tl)[i]
+	if dSw.next != nil && pSw.Task() == dSw.next.Task() {
+		pSw.next = dSw.next.next
+		copy((*tl)[i:], (*tl)[i+2:])
+		*tl = (*tl)[:len(*tl)-2]
+	} else {
+		pSw.next = dSw.next
+		copy((*tl)[i:], (*tl)[i+1:])
+		*tl = (*tl)[:len(*tl)-1]
+	}
+	return nil
 }
 
-func ShiftAll(int, *Switch, time.Duration) bool { return true }
-
-func ShiftNonNilTask(_ int, sw *Switch, _ time.Duration) bool {
-	return sw.Task() != nil
-}
-
-func (tl *TimeLine) Del(at time.Time, pre, post func(int, *Switch, time.Duration) bool) {
+// If at == start & pre != nil && post == nil => shift the past
+func (tl *TimeLine) Del(at time.Time, pre, post SelectSwitch) {
 	di, sw := tl.Pick(at)
 	if di < 0 {
 		return
 	}
 	tl.DelSwitch(di)
 	dd := at.Sub(sw.When())
-	if pre != nil && dd > 0 {
-		for i := di - 1; i >= 0; i-- {
-			ms := (*tl)[i]
-			if !pre(di-i, ms, dd) {
-				break
+	if pre != nil {
+		if dd == 0 && post == nil && sw.next != nil {
+			dd = sw.Duration()
+		}
+		if dd > 0 {
+			for i := di - 1; i >= 0; i-- {
+				ms := (*tl)[i]
+				if !pre(di-i, ms) {
+					break
+				}
+				ms.when = ms.when.Add(dd)
 			}
-			ms.when = ms.when.Add(dd)
 		}
 	}
 	if ns := sw.Next(); post != nil && ns != nil {
 		dd = at.Sub(ns.When())
 		i := 1
 		if dd < 0 {
-			for ns != nil && post(i, ns, dd) {
+			for ns != nil && post(i, ns) {
 				ns.when = ns.when.Add(dd)
 				ns = ns.next
 				i++
