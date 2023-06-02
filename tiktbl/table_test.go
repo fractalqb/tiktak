@@ -31,6 +31,20 @@ func ExampleCrsr() {
 	// col1    | col2
 }
 
+func ExampleStretchEmpty() {
+	var tbl Data
+	crsr := tbl.At(0, 0).
+		SetString("head").
+		SetString("2-column heading", Span(2), Pad('.')).NextRow()
+	crsr.SetString("", SpanAll, Pad('-')).NextRow()
+	crsr.SetStrings("col1")
+	(&Terminal{CellPad: " | "}).Write(os.Stdout, &tbl)
+	// Output:
+	// head | 2-column heading
+	// -----------------------
+	// col1 |         |
+}
+
 func Test_stretch(t *testing.T) {
 	proto := []int{4, 7, 5}
 	cols := make([]int, len(proto))

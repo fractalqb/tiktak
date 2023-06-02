@@ -173,7 +173,14 @@ func stretch(cws []int, total int) {
 	for _, cw := range cws {
 		scale += float64(cw)
 	}
-	scale = float64(total) / scale
+	if scale <= 0 {
+		for i := range cws {
+			cws[i] = 1
+		}
+		scale = float64(total) / float64(l)
+	} else {
+		scale = float64(total) / scale
+	}
 	breaks := make([]float64, l)
 	breaks[0] = scale * float64(cws[0])
 	for i := 1; i < l; i++ {
