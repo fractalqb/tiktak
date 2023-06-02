@@ -119,7 +119,7 @@ func (t *Data) ColumnWidths(pad string) (cws []int) {
 	for _, row := range t.rows {
 		for c := range row {
 			cell := &row[c]
-			if cell.span < 1 || cell.text == "" {
+			if cell.span != 1 || cell.text == "" {
 				continue
 			}
 			w := utf8.RuneCountInString(cell.text)

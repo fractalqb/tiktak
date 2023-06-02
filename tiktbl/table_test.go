@@ -19,6 +19,18 @@ func Example() {
 	// ...baz...
 }
 
+func ExampleCrsr() {
+	var tbl Data
+	crsr := tbl.At(0, 0).SetString("2-column heading", Span(2), Pad('.')).NextRow()
+	crsr.SetString("", SpanAll, Pad('-')).NextRow()
+	crsr.SetStrings("col1", "col2")
+	(&Terminal{CellPad: " | "}).Write(os.Stdout, &tbl)
+	// Output:
+	// 2-column heading
+	// ----------------
+	// col1    | col2
+}
+
 func Test_stretch(t *testing.T) {
 	proto := []int{4, 7, 5}
 	cols := make([]int, len(proto))
