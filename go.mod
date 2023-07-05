@@ -9,6 +9,7 @@ require (
 )
 
 require (
+	git.fractalqb.de/fractalqb/catch v0.3.0
 	git.fractalqb.de/fractalqb/gomk v0.10.0
 	golang.org/x/mod v0.10.0
 )

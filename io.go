@@ -83,7 +83,10 @@ func Read(r io.Reader, root *Task) (tl TimeLine, err error) {
 			if sep < 0 {
 				root.GetString(line)
 			} else {
-				t := root.GetString(line[:sep])
+				t, err := root.GetString(line[:sep])
+				if err != nil {
+					return nil, fmt.Errorf("%d:%w", lno, err)
+				}
 				t.SetTitle(strings.TrimSpace(line[sep:]))
 			}
 		case 'v':
@@ -115,7 +118,7 @@ func Read(r io.Reader, root *Task) (tl TimeLine, err error) {
 		default:
 			if strings.IndexAny(line, " \t") == 0 {
 				if lastSwitch < 0 {
-					return nil, fmt.Errorf("%d:note bfore first switch", lno)
+					return nil, fmt.Errorf("%d:note before first switch", lno)
 				}
 				n, err := parseNote(line)
 				if err != nil {
@@ -138,7 +141,10 @@ func Read(r io.Reader, root *Task) (tl TimeLine, err error) {
 				case fs[1][0] != '/':
 					return nil, fmt.Errorf("%d:not an absolute path '%s'", lno, fs[1])
 				}
-				task := root.GetString(fs[1])
+				task, err := root.GetString(fs[1])
+				if err != nil {
+					return nil, fmt.Errorf("%d:%w", lno, err)
+				}
 				lastSwitch = tl.Switch(t, task)
 			}
 		}

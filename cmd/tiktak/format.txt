@@ -1,0 +1,14 @@
+Field(s)         : Example / Description
+---------------------------------------------------------------------
+Header (optional): <file version>	tiktak time tracker
+Tasks (optional) : /task0 A single space separates this title
+  tasks are      : /task1 Not every task has a title
+  written by e.g.: /task/without/title
+  tiktak command : /yet/another/task
+Comments         : # Lines starting with '#' are comments
+Task switch      : <timestamp> <task name>
+  Remark (opt)   : 	. Indented dot '.' is a remark on the task switch
+  Warning (opt)  : 	!? Indented exclamation mark is a warning
+    Rune after
+    '!' is the
+    warning type

@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"git.fractalqb.de/fractalqb/catch"
+	"git.fractalqb.de/fractalqb/catch/test"
 )
 
 type sw struct {
@@ -55,7 +58,7 @@ func testTL(ps ...int) (now time.Time, d time.Duration, tl TimeLine, ts []*Task)
 	d = 15 * time.Minute
 	now = time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC)
 	for i, p := range ps {
-		t := root.Get(fmt.Sprintf("task%d", i))
+		t := catch.MustRet(root.Get(fmt.Sprintf("task%d", i)))
 		tl.Switch(now.Add(time.Duration(p)*d), t)
 		ts = append(ts, t)
 	}
@@ -66,7 +69,7 @@ func TestTimeLine_Pick(t *testing.T) {
 	var tasks Task
 	var tl TimeLine
 	ts := time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC)
-	ti := tl.Switch(ts, tasks.Get("foo"))
+	ti := tl.Switch(ts, test.Err(tasks.Get("foo")).ShallNot(t))
 	if n := tl[ti].Task().Name(); n != "foo" {
 		t.Fatalf("wrong task '%s'", n)
 	}
@@ -105,20 +108,20 @@ func TestTimeLine_Switch(t *testing.T) {
 	t.Run("1st switch", func(t *testing.T) {
 		var tr Task
 		var tl TimeLine
-		tt := tr.Get("test")
+		tt := test.Err(tr.Get("test")).ShallNot(t)
 		tl.Switch(now, tt)
 		expectTL(t, tl, sw{now, tt})
 	})
 
 	setup := func() (rt, t0 *Task, tl TimeLine) {
 		rt = new(Task)
-		t0 = rt.Get("task0")
+		t0 = test.Err(rt.Get("task0")).ShallNot(t)
 		tl.Switch(now, t0)
 		return
 	}
 	t.Run("switch before", func(t *testing.T) {
 		rt, t0, tl := setup()
-		tt := rt.Get("test")
+		tt := test.Err(rt.Get("test")).ShallNot(t)
 		tl.Switch(dt(-15), tt)
 		expectTL(t, tl, sw{dt(-15), tt}, sw{now, t0})
 	})
@@ -134,7 +137,7 @@ func TestTimeLine_Switch(t *testing.T) {
 	})
 	t.Run("switch after", func(t *testing.T) {
 		rt, t0, tl := setup()
-		tt := rt.Get("test")
+		tt := test.Err(rt.Get("test")).ShallNot(t)
 		tl.Switch(dt(15), tt)
 		expectTL(t, tl, sw{now, t0}, sw{dt(15), tt})
 	})
@@ -145,7 +148,7 @@ func TestTimeLine_Switch(t *testing.T) {
 	})
 	t.Run("switch at", func(t *testing.T) {
 		rt, _, tl := setup()
-		tt := rt.Get("test")
+		tt := test.Err(rt.Get("test")).ShallNot(t)
 		tl.Switch(now, tt)
 		expectTL(t, tl, sw{now, tt})
 	})
@@ -157,13 +160,13 @@ func TestTimeLine_Switch(t *testing.T) {
 
 	setup2 := func() (rt, t0, t1 *Task, tl TimeLine) {
 		rt, t0, tl = setup()
-		t1 = rt.Get("task1")
+		t1 = test.Err(rt.Get("task1")).ShallNot(t)
 		tl.Switch(dt(30), t1)
 		return
 	}
 	t.Run("between", func(t *testing.T) {
 		rt, t0, t1, tl := setup2()
-		tt := rt.Get("test")
+		tt := test.Err(rt.Get("test")).ShallNot(t)
 		tl.Switch(dt(15), tt)
 		expectTL(t, tl, sw{now, t0}, sw{dt(15), tt}, sw{dt(30), t1})
 	})
@@ -183,14 +186,14 @@ func TestTimeLine_Switch(t *testing.T) {
 		if t0eqt2 {
 			t2 = t0
 		} else {
-			t2 = rt.Get("task2")
+			t2 = test.Err(rt.Get("task2")).ShallNot(t)
 		}
 		tl.Switch(dt(60), t2)
 		return
 	}
 	t.Run("change", func(t *testing.T) {
 		rt, t0, _, t2, tl := setup3(false)
-		tt := rt.Get("test")
+		tt := test.Err(rt.Get("test")).ShallNot(t)
 		tl.Switch(dt(30), tt)
 		expectTL(t, tl, sw{now, t0}, sw{dt(30), tt}, sw{dt(60), t2})
 	})
@@ -212,7 +215,7 @@ func TestTimeLine_Switch(t *testing.T) {
 
 	t.Run("change between", func(t *testing.T) {
 		rt, t0, _, _, tl := setup3(true)
-		tt := rt.Get("test")
+		tt := test.Err(rt.Get("test")).ShallNot(t)
 		tl.Switch(dt(30), tt)
 		expectTL(t, tl, sw{now, t0}, sw{dt(30), tt}, sw{dt(60), t0})
 	})
@@ -234,7 +237,7 @@ func TestTimeLine_Insert(t *testing.T) {
 		dt := 15 * time.Minute
 		var tasks Task
 		var tl TimeLine
-		tt := tasks.Get("task0")
+		tt := test.Err(tasks.Get("task0")).ShallNot(t)
 		tl.Insert(now, tt, -dt, AllSwitch, dt, AllSwitch)
 		expectTL(t, tl,
 			sw{now.Add(-dt), tt},
@@ -243,7 +246,7 @@ func TestTimeLine_Insert(t *testing.T) {
 	})
 	t.Run("insert between", func(t *testing.T) {
 		now, d, tl, ts := testTL(-1, 1)
-		tt := tl.RootTask().Get("test")
+		tt := test.Err(tl.RootTask().Get("test")).ShallNot(t)
 		tl.Insert(now, tt, -d, AllSwitch, d, AllSwitch)
 		expectTL(t, tl,
 			sw{now.Add(-2 * d), ts[0]},
@@ -253,7 +256,7 @@ func TestTimeLine_Insert(t *testing.T) {
 	})
 	t.Run("insert at start", func(t *testing.T) {
 		now, d, tl, ts := testTL(-1, 0, 1)
-		tt := tl.RootTask().Get("test")
+		tt := test.Err(tl.RootTask().Get("test")).ShallNot(t)
 		td := 2 * time.Minute
 		tl.Insert(now, tt, -td, AllSwitch, td, AllSwitch)
 		expectTL(t, tl,
@@ -267,7 +270,8 @@ func TestTimeLine_Insert(t *testing.T) {
 
 func TestTime_DelSwitch(t *testing.T) {
 	var rt Task
-	t0, tt := rt.Get("tast0"), rt.Get("test")
+	t0 := test.Err(rt.Get("tast0")).ShallNot(t)
+	tt := test.Err(rt.Get("test")).ShallNot(t)
 	var tl TimeLine
 	now := time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC)
 	d := 15 * time.Minute
@@ -283,7 +287,9 @@ func TestTime_DelSwitch(t *testing.T) {
 func TestTimeLine_Del(t *testing.T) {
 	var rt Task
 	var tl TimeLine
-	t0, t1, t2 := rt.Get("task0"), rt.Get("task1"), rt.Get("task2")
+	t0 := test.Err(rt.Get("task0")).ShallNot(t)
+	t1 := test.Err(rt.Get("task1")).ShallNot(t)
+	t2 := test.Err(rt.Get("task2")).ShallNot(t)
 	now := time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC)
 	tl.Switch(now.Add(-30*time.Minute), t0)
 	tl.Switch(now, t1)
@@ -307,11 +313,11 @@ func ExampleTimeLine() {
 		fmt.Println()
 	}
 	t := time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC)
-	show(tl.Switch(t, root.Get("1")))
-	show(tl.Switch(t.Add(time.Hour), root.Get("2")))
-	show(tl.Switch(t.Add(-time.Hour), root.Get("3")))
-	show(tl.Switch(t.Add(-30*time.Minute), root.Get("4")))
-	show(tl.Switch(t.Add(30*time.Minute), root.Get("5")))
+	show(tl.Switch(t, catch.MustRet(root.Get("1"))))
+	show(tl.Switch(t.Add(time.Hour), catch.MustRet(root.Get("2"))))
+	show(tl.Switch(t.Add(-time.Hour), catch.MustRet(root.Get("3"))))
+	show(tl.Switch(t.Add(-30*time.Minute), catch.MustRet(root.Get("4"))))
+	show(tl.Switch(t.Add(30*time.Minute), catch.MustRet(root.Get("5"))))
 	// Output:
 	// 0 2023-04-01 12:00:00 +0000 UTC /1
 	// 1 2023-04-01 13:00:00 +0000 UTC /2

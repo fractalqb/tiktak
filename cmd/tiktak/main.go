@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"flag"
 	"fmt"
 	"io"
@@ -59,6 +60,9 @@ var (
 	now      time.Time
 	rootTask tiktak.Task
 	timeline tiktak.TimeLine
+
+	//go:embed format.txt
+	formatMsg string
 )
 
 func main() {
@@ -82,7 +86,10 @@ func main() {
 		must(cmd.CheckPathString(p))
 		var t *tiktak.Task
 		if path.IsAbs(p) {
-			t = rootTask.GetString(p)
+			var err error
+			if t, err = rootTask.GetString(p); err != nil {
+				log.Fatal(err)
+			}
 		} else if m := match(&rootTask, p); len(m) == 0 {
 			log.Fatalf("no matching task for '%s'", p)
 		} else if len(m) > 1 {
@@ -241,6 +248,8 @@ func showInfos() {
 				}
 			}
 		}
+	case "format":
+		fmt.Print(formatMsg)
 	default:
 		log.Fatalf("invalid info request: '%s'", query)
 	}

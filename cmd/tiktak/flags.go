@@ -39,7 +39,8 @@ Config path: .Report.Default`,
           variable %s.
  - file/f: Print current tiktat data file name.
  - match/m [parttern…]: Show known task names from current data file
-                        that match given patterns.`,
+                        that match given patterns.
+ - format: Print example of tiktak file format.`,
 			cmd.EnvTiktakData),
 	)
 	flag.StringVar(&cfg.TikTak.Formats, "formats", cfg.TikTak.Formats,

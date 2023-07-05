@@ -1,6 +1,8 @@
 git.fractalqb.de/fractalqb/c4hgol v0.12.0/go.mod h1:WaEjUnHxxec4RshLTh6cbtbzTnaYYgsK01gjrkBmuoo=
 git.fractalqb.de/fractalqb/c4hgol v0.13.0/go.mod h1:NCwvC/sV+V5qE4h9FGzKDgl2nsBw3hOpNbThEgnIWvM=
 git.fractalqb.de/fractalqb/c4hgol v0.13.1/go.mod h1:NCwvC/sV+V5qE4h9FGzKDgl2nsBw3hOpNbThEgnIWvM=
+git.fractalqb.de/fractalqb/catch v0.3.0 h1:Gq2b4k3O4+8joTlXLx8thcwYU0FkRGnZgDAoalAs4dM=
+git.fractalqb.de/fractalqb/catch v0.3.0/go.mod h1:zXovejd5jSkpUrfb5N5wuGqfhoP419f7IjdK+JKIbeE=
 git.fractalqb.de/fractalqb/ggja v0.11.2 h1:YmQ1qJ76BWfXRP7vzj+jRQ2nJQR1F80DtdCzIsvVxFQ=
 git.fractalqb.de/fractalqb/ggja v0.11.2/go.mod h1:AIZ5hSqD4EkkA7UhzCeGfD7dS6rjs164qh1hx1B7LE8=
 git.fractalqb.de/fractalqb/gomk v0.10.0 h1:DmpEYE9t7DnaDkJm37dW6F2/w23pLfsJx1jibunrRpE=

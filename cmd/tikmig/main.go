@@ -81,7 +81,10 @@ func migrate(r io.Reader) tiktak.TimeLine {
 }
 
 func convert(root *tiktak.Task, spans []inspan, path []string, in ggja.Obj) []inspan {
-	task := root.Get(path...)
+	task, err := root.Get(path...)
+	if err != nil {
+		log.Fatal(err)
+	}
 	sps := in.Arr("spans")
 	for i := 0; i < sps.Len(); i++ {
 		span := sps.Obj(i)

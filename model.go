@@ -44,8 +44,18 @@ func cmprName(n, m string) int {
 	return c
 }
 
-func (t *Task) Get(path ...string) *Task {
+func validName(n string) error {
+	if strings.ContainsAny(n, "\t\n\v\f\r \x85\xA0") {
+		return fmt.Errorf("invalid name '%s'", n)
+	}
+	return nil
+}
+
+func (t *Task) Get(path ...string) (*Task, error) {
 	for _, n := range path {
+		if err := validName(n); err != nil {
+			return nil, err
+		}
 		l := len(t.subs)
 		i := sort.Search(l, func(i int) bool { return cmprName(t.subs[i].name, n) >= 0 })
 		if i == l {
@@ -75,12 +85,12 @@ func (t *Task) Get(path ...string) *Task {
 			t = nt
 		}
 	}
-	return t
+	return t, nil
 }
 
-func (t *Task) GetString(p string) *Task {
+func (t *Task) GetString(p string) (*Task, error) {
 	if p == "/" {
-		return t.Root()
+		return t.Root(), nil
 	}
 	if path.IsAbs(p) {
 		t = t.Root()
