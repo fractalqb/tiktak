@@ -88,21 +88,21 @@ func (d *Date) Start() time.Time {
 }
 
 type Clock struct {
-	D        time.Duration
+	Dur      time.Duration
 	Location *time.Location
 }
 
 func ClockOf(t time.Time) Clock {
 	s := StartDay(t, 0, nil)
 	return Clock{
-		D:        t.Sub(s),
+		Dur:      t.Sub(s),
 		Location: t.Location(),
 	}
 }
 
 func (c Clock) On(day time.Time) time.Time {
 	s := StartDay(day, 0, day.Location())
-	return s.Add(c.D) // TODO c.Location ?
+	return s.Add(c.Dur) // TODO c.Location ?
 }
 
-func (c Clock) HMSF() (h, m, s int, f float64) { return HMSF(c.D) }
+func (c Clock) HMSF() (h, m, s int, f float64) { return HMSF(c.Dur) }

@@ -88,38 +88,64 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		crsr.NextRow()
 	}
 	tsums, tmap := accounts(sht.Tasks)
-	count, stopCount := 0, 0
+	tsumw := make([]time.Duration, len(tsums))
+	count, stopCount, weekCount := 0, 0, 0
 	var workSum, breakSum, restSum time.Duration
+	var weekWork, weekBreak, weekRest time.Duration
 	var starts, stops time.Duration
 	var notes []int
+	weekSums := func() {
+		if weekWork == 0 {
+			return
+		}
+		crsr.SetString("Week count:", Muted()).Set(weekCount, Muted()).
+			SetString("Sum:", Muted())
+		crsr.With(Muted()).SetStrings(
+			fmts.Duration(weekBreak),
+			fmts.Duration(weekWork),
+		)
+		for i, td := range tsumw {
+			if td > 0 {
+				crsr.SetString(fmts.Duration(td), Muted())
+				tsumw[i] = 0
+			} else {
+				crsr.SetString("-", tiktbl.Center, Muted())
+			}
+		}
+		if weekRest > 0 {
+			crsr.SetString(fmts.Duration(weekRest), Muted())
+		} else if len(tsumw) > 0 {
+			crsr.SetString("-", tiktbl.Center, Muted())
+		}
+		crsr.NextRow()
+		weekWork, weekBreak, weekRest, weekCount = 0, 0, 0, 0
+	}
 	for day.Before(end) {
 		if day.Weekday() == sht.WeekStart {
+			weekSums()
 			weekSep(day)
 		}
 
 		style := tiktbl.NoStyle()
 		next := tiktak.StartDay(day, 1, loc)
-		d, ds, de := tl.Duration(day, next, now, tiktak.AnyTask)
-		if d == 0 {
+		dayWork, ds, de := tl.Duration(day, next, now, tiktak.AnyTask)
+		if dayWork == 0 {
 			day = next
 			continue
 		}
 		stop := "..."
 		if !de.IsZero() {
 			stop = fmts.Clock(de)
-			stops += tiktak.ClockOf(de).D
+			stops += tiktak.ClockOf(de).Dur
 			stopCount++
 		} else {
 			style = Bold()
 		}
-		if ds.Weekday() == time.Friday {
-			fmt.Println(ds, de, now)
-		}
-		var p time.Duration
+		var dayBreak time.Duration
 		if de.IsZero() {
-			p, _, _ = tl.Duration(ds, now, now, tiktak.IsATask(nil))
+			dayBreak, _, _ = tl.Duration(ds, now, now, tiktak.IsATask(nil))
 		} else {
-			p, _, _ = tl.Duration(ds, de, now, tiktak.IsATask(nil))
+			dayBreak, _, _ = tl.Duration(ds, de, now, tiktak.IsATask(nil))
 		}
 
 		if hasWarning(tl, day, next, tiktak.AnyTask) {
@@ -128,14 +154,15 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 			crsr.SetString(fmts.ShortDate(day), style)
 		}
 
-		crsr.With(style).SetStrings(
-			fmts.Clock(ds),
-			stop,
-			fmts.Duration(p),
-			fmts.Duration(d),
-		)
+		crsr.With(style).SetStrings(fmts.Clock(ds), stop)
+		if dayBreak > 0 {
+			crsr.SetString(fmts.Duration(dayBreak), style)
+		} else {
+			crsr.SetString("-", style, tiktbl.Center)
+		}
+		crsr.SetString(fmts.Duration(dayWork), style)
 
-		rest := d
+		rest := dayWork
 		for i, t := range sht.Tasks {
 			warns := false
 			td, _, _ := tl.Duration(day, next, now, func(s *tiktak.Switch) bool {
@@ -161,6 +188,7 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 				} else {
 					crsr.SetString(fmts.Duration(td))
 				}
+				tsumw[i] += td
 				tsums[i].n++
 				tsums[i].d += td
 				rest -= td
@@ -168,23 +196,30 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		}
 		if len(tsums) > 0 {
 			crsr.SetString(fmts.Duration(rest))
+			weekRest += rest
 		}
 
 		count++
-		starts += tiktak.ClockOf(ds).D
-		workSum += d
-		breakSum += p
+		starts += tiktak.ClockOf(ds).Dur
+		weekWork += dayWork
+		weekBreak += dayBreak
+		workSum += dayWork
+		breakSum += dayBreak
 		restSum += rest
+		if workSum > 0 {
+			weekCount++
+		}
 
 		crsr.NextRow()
 		day = next
 	}
+	weekSums()
 	var startAvg, stopAvg tiktak.Clock
 	if count > 0 {
-		startAvg = tiktak.Clock{D: starts / time.Duration(count), Location: now.Location()}
+		startAvg = tiktak.Clock{Dur: starts / time.Duration(count), Location: now.Location()}
 	}
 	if stopCount > 0 {
-		stopAvg = tiktak.Clock{D: stops / time.Duration(stopCount), Location: now.Location()}
+		stopAvg = tiktak.Clock{Dur: stops / time.Duration(stopCount), Location: now.Location()}
 	}
 	crsr.SetString("", tiktbl.SpanAll, tiktbl.Pad('-')).NextRow().
 		SetString("Average:", tiktbl.Right, Bold()).
