@@ -181,12 +181,12 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 				return false
 			})
 			if td == 0 {
-				crsr.SetString("-", tiktbl.Center)
+				crsr.SetString("-", style, tiktbl.Center)
 			} else {
 				if warns {
-					crsr.SetString(fmts.Duration(td), Warn())
+					crsr.SetString(fmts.Duration(td), style, Warn())
 				} else {
-					crsr.SetString(fmts.Duration(td))
+					crsr.SetString(fmts.Duration(td), style)
 				}
 				tsumw[i] += td
 				tsums[i].n++
@@ -195,7 +195,7 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 			}
 		}
 		if len(tsums) > 0 {
-			crsr.SetString(fmts.Duration(rest))
+			crsr.SetString(fmts.Duration(rest), style)
 			weekRest += rest
 		}
 
