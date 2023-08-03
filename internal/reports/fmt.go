@@ -3,6 +3,7 @@ package reports
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 
 	"git.fractalqb.de/fractalqb/tiktak"
@@ -38,7 +39,7 @@ var (
 		fullDateFmt:  DateFmt,
 		shortDateFmt: ShortDateFmt,
 		clockFmt:     "15:04:05",
-		durFmtr:      dur,
+		durFmtr:      fmtDuration,
 	}
 
 	FracCFmts = cfgFmts{
@@ -75,7 +76,7 @@ func minutes(d time.Duration) string {
 	return res
 }
 
-func dur(d time.Duration) (res string) {
+func fmtDuration(d time.Duration) (res string) {
 	if d < 0 {
 		return "∞"
 	}
@@ -83,7 +84,8 @@ func dur(d time.Duration) (res string) {
 	days := h / 24
 	h %= 24
 	if f != 0 {
-		res = fmt.Sprintf(`%02d'%02d.%f"`, m, s, f)
+		fstr := strconv.FormatFloat(f, 'f', 3, 64)
+		res = fmt.Sprintf(`%02d'%02d.%s"`, m, s, fstr[2:])
 	} else if s != 0 {
 		res = fmt.Sprintf(`%02d'%02d"`, m, s)
 	} else {
