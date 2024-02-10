@@ -2,58 +2,70 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 
 	"git.fractalqb.de/fractalqb/gomk"
+	"git.fractalqb.de/fractalqb/qblog"
 )
 
-const (
-	version = "0.4.1"
-
-	cmdsName = "commands"
-)
+const version = "0.4.1"
 
 var (
-	must     = gomk.Must
-	commands = []string{"tiktak", "tikflt", "tikmig"}
+	cmds = []string{
+		"cmd/tikflt/tikflt",
+		"cmd/tikmig/tikmig",
+		"cmd/tiktak/tiktak",
+	}
 
-	goBuild = gomk.CommandDef{
-		Name: "go",
-		Args: []string{"build",
-			"-trimpath",
-			"-ldflags",
-			fmt.Sprintf("-s -w -X git.fractalqb.de/fractalqb/tiktak/cmd.Version=%s", version),
+	goBuild = gomk.GoBuild{
+		TrimPath: true,
+		LDFlags:  "-s -w",
+		SetVars: []string{
+			"git.fractalqb.de/fractalqb/tiktak/cmd.Version=" + version,
 		},
 	}
+
+	log      = qblog.New(&qblog.DefaultConfig).Logger
+	writeDot bool
 )
 
 func flags() {
-	inst := flag.Bool("install", false, "Install commands after building")
+	fLog := flag.String("log", "", "Set log level")
+	fInstall := flag.Bool("install", false, "Install commands")
+	flag.BoolVar(&writeDot, "dot", false, "Write project as graphviz dot file")
 	flag.Parse()
-	if *inst {
-		goBuild.Args[0] = "install"
+	goBuild.Install = *fInstall
+	if *fLog != "" {
+		qblog.DefaultConfig.ParseFlag(*fLog)
 	}
 }
 
 func main() {
 	flags()
 
-	prj := gomk.NewProject(must, &gomk.Config{Env: os.Environ()})
+	prj := gomk.NewProject(".")
 
-	tCmds := gomk.NewNopTask(must, prj, cmdsName)
+	gVulnchk := prj.Goal(gomk.Directory("vulncheck")).
+		By(&gomk.GoVulncheck{Patterns: []string{"./..."}})
 
-	for _, cmd := range commands {
-		t := gomk.NewCmdDefTask(must, prj, "cmd:"+cmd, goBuild).
-			WorkDir("cmd", cmd)
-		tCmds.DependOn(t.Name())
+	gTest := prj.Goal(gomk.Abstract("test")).
+		By(&gomk.GoTest{Pkgs: []string{"./..."}}, gVulnchk)
+
+	gCmds := prj.Goal(gomk.Abstract("cmds"))
+
+	for _, cmd := range cmds {
+		g := prj.Goal(gomk.File(cmd)).By(&goBuild, gTest)
+		gCmds.ImpliedBy(g)
 	}
 
-	if flag.NArg() == 0 {
-		gomk.Build(prj, cmdsName)
-	} else {
-		for _, arg := range flag.Args() {
-			gomk.Build(prj, arg)
-		}
+	if writeDot {
+		prj.WriteDot(os.Stdout)
+		return
+	}
+
+	builder := gomk.Builder{Env: gomk.DefaultEnv()}
+	builder.Env.Log = log
+	if err := builder.Project(prj); err != nil {
+		log.Error(err.Error())
 	}
 }
