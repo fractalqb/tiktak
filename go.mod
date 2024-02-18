@@ -1,6 +1,6 @@
 module git.fractalqb.de/fractalqb/tiktak
 
-go 1.21.6
+go 1.22
 
 toolchain go1.22.0
 
@@ -12,7 +12,7 @@ require (
 
 require (
 	git.fractalqb.de/fractalqb/catch v0.3.0
-	git.fractalqb.de/fractalqb/gomk v0.11.1-alpha
+	git.fractalqb.de/fractalqb/gomk v0.11.6
 	git.fractalqb.de/fractalqb/qblog v0.14.3
 	golang.org/x/mod v0.15.0
 )

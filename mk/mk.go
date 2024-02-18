@@ -19,7 +19,7 @@ var (
 
 	goBuild = gomk.GoBuild{
 		TrimPath: true,
-		LDFlags:  "-s -w",
+		LDFlags:  []string{"-s", "-w"},
 		SetVars: []string{
 			"git.fractalqb.de/fractalqb/tiktak/cmd.Version=" + version,
 		},
@@ -45,13 +45,13 @@ func main() {
 
 	prj := gomk.NewProject(".")
 
-	gVulnchk := prj.Goal(gomk.Directory("vulncheck")).
+	gVulnchk := prj.Goal(gomk.Abstract("vulncheck")).
 		By(&gomk.GoVulncheck{Patterns: []string{"./..."}})
 
 	gTest := prj.Goal(gomk.Abstract("test")).
 		By(&gomk.GoTest{Pkgs: []string{"./..."}}, gVulnchk)
 
-	gCmds := prj.Goal(gomk.Abstract("cmds"))
+	gCmds := prj.Goal(gomk.DirContent("cmds"))
 
 	for _, cmd := range cmds {
 		g := prj.Goal(gomk.File(cmd)).By(&goBuild, gTest)
