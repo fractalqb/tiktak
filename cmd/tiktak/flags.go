@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"slices"
+	"strings"
 	"time"
 
 	"git.fractalqb.de/fractalqb/tiktak/cmd"
@@ -57,8 +60,28 @@ Config path: .Formats`,
 		`Select report layout: term, csv
 Config path: .Report.Layout`,
 	)
-	flag.StringVar(&cfg.TikTak.Filter, "x", cfg.TikTak.Filter,
-		"Select filter to apply before saving or writing reports.",
+	flag.Func("x", fmt.Sprintf(`Add or move filter to end of filter list. Filters are applied
+in list order before writing reports.
+Default filters: %s`, strings.Join(cfg.TikTak.Filter, ", ")),
+		func(s string) error {
+			if s == "" {
+				return errors.New("empty filter name")
+			}
+			cfg.TikTak.Filter = slices.DeleteFunc(cfg.TikTak.Filter, func(f string) bool {
+				return f == s
+			})
+			cfg.TikTak.Filter = append(cfg.TikTak.Filter, s)
+			return nil
+		})
+	flag.Func("X", "Remove filter from filter list (see also -x).", func(s string) error {
+		cfg.TikTak.Filter = slices.DeleteFunc(cfg.TikTak.Filter, func(f string) bool {
+			return f == s
+		})
+		return nil
+	})
+	flag.StringVar(&cfg.TikTak.FilterErr, "x-err", cfg.TikTak.FilterErr,
+		`Set target of stderr for filters. Empty sends to stderr, <file>
+creates a file and +<file> appends to a file.`,
 	)
 	fCfgDump := flag.Bool("dump-config", false,
 		"Dump config to stdout and exit.",

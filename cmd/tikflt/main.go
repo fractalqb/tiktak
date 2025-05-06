@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -14,45 +13,48 @@ import (
 	stdFilter "git.fractalqb.de/fractalqb/tiktak/internal/filters"
 )
 
-type filter interface {
-	Filter(tl *tiktak.TimeLine) error
-}
-
 var filters = map[string]func() filter{
 	"round":   func() filter { return new(stdFilter.Round) },
 	"ugap":    func() filter { return new(stdFilter.MicroGap) },
 	"dearbzg": func() filter { return new(stdFilter.DEArbZG) },
+	"netloc":  func() filter { return new(stdFilter.NetLoc) },
 }
 
 func main() {
 	list := flag.Bool("l", false, "List filters")
+	nowStr := flag.String("t", "", "Set current time")
 	flag.Parse()
 	if *list {
 		listFilters()
 		return
+	}
+	var now time.Time
+	if *nowStr == "" {
+		now = time.Now()
+	} else {
+		var err error
+		if now, err = time.Parse(time.RFC3339, *nowStr); err != nil {
+			log.Fatalf("invalid current time '%s', expect RFC 3339 format", *nowStr)
+		}
 	}
 	var tr tiktak.Task
 	tl, err := tiktak.Read(os.Stdin, &tr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	cl := flag.CommandLine
-	for len(cl.Args()) > 0 {
-		fname := cl.Arg(0)
+	for args := flag.Args(); len(args) > 0; {
+		fname := args[0]
 		newFilter := filters[fname]
 		if newFilter == nil {
 			log.Fatalf("unknown filter '%s'", fname)
 		}
 		filter := newFilter()
-		tmp := flag.NewFlagSet(fname, flag.ExitOnError)
-		filterFlags(tmp, filter)
-		if err := tmp.Parse(cl.Args()[1:]); err != nil {
-			log.Fatal(err)
-		}
-		if err := filter.Filter(&tl); err != nil {
+		if args, err = filter.Flags(args[1:]); err != nil {
 			log.Fatalf("%s: %s", fname, err)
 		}
-		cl = tmp
+		if err := filter.Filter(&tl, now); err != nil {
+			log.Fatalf("%s: %s", fname, err)
+		}
 	}
 	if err := tiktak.Write(os.Stdout, tl); err != nil {
 		log.Fatal(err)
@@ -68,39 +70,7 @@ func listFilters() {
 	fmt.Println(strings.Join(names, ", "))
 }
 
-func filterFlags(fs *flag.FlagSet, f filter) {
-	cfgv := reflect.Indirect(reflect.ValueOf(f))
-	cfgt := cfgv.Type()
-	for i := 0; i < cfgt.NumField(); i++ {
-		f := cfgt.Field(i)
-		if !f.IsExported() {
-			continue
-		}
-		tag := f.Tag.Get("tikf")
-		var doc string
-		if tag == "-" {
-			continue
-		} else if tag == "" {
-			tag = strings.ToLower(f.Name)
-		} else {
-			tmp := strings.Split(tag, ",")
-			if tmp[0] == "" {
-				tag = strings.ToLower(f.Name)
-			} else {
-				tag = tmp[0]
-			}
-			if len(tmp) > 1 {
-				doc = tmp[1]
-			}
-		}
-		switch {
-		case f.Type == reflect.TypeOf(time.Minute):
-			fs.DurationVar(
-				cfgv.Field(i).Addr().Interface().(*time.Duration),
-				tag,
-				cfgv.Field(i).Interface().(time.Duration),
-				doc,
-			)
-		}
-	}
+type filter interface {
+	Flags(args []string) ([]string, error)
+	Filter(tl *tiktak.TimeLine, now time.Time) error
 }

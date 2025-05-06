@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bytes"
 	_ "embed"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 	"time"
@@ -28,7 +26,8 @@ type Config struct {
 	}
 	StartOfWeek time.Weekday
 	Filters     map[string][]string
-	Filter      string
+	Filter      []string
+	FilterErr   string
 }
 
 type cmdMode int
@@ -128,7 +127,7 @@ func mustRet[T any](v T, err error) T {
 }
 
 func write(file string) {
-	runFilter(cfg.TikTak.Filter)
+	runFilters(cfg.TikTak.Filter)
 	if file == "-" {
 		must(tiktak.Write(os.Stdout, timeline))
 		return
@@ -190,7 +189,7 @@ func match(t *tiktak.Task, s string) []*tiktak.Task {
 }
 
 func showReport() {
-	runFilter(cfg.TikTak.Filter)
+	runFilters(cfg.TikTak.Filter)
 	switch cfg.TikTak.Report.Default {
 	case "", "plain":
 		tiktak.Write(os.Stdout, timeline)
@@ -256,20 +255,3 @@ func showInfos() {
 }
 
 func reptCfg() reports.Report { return reports.Report{Layout: tableWr, Fmts: formats} }
-
-func runFilter(name string) {
-	if name == "" {
-		return
-	}
-	cmdArgs := cfg.TikTak.Filters[name]
-	if len(cmdArgs) == 0 {
-		log.Fatalf("unknown filter '%s'", name)
-	}
-	var buf bytes.Buffer
-	must(tiktak.Write(&buf, timeline))
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
-	cmd.Stdin = &buf
-	cmd.Stderr = os.Stderr
-	data := mustRet(cmd.Output())
-	timeline = mustRet(tiktak.Read(bytes.NewReader(data), &rootTask))
-}
