@@ -1,8 +1,6 @@
 module git.fractalqb.de/fractalqb/tiktak
 
-go 1.22
-
-toolchain go1.22.0
+go 1.24.2
 
 require (
 	git.fractalqb.de/fractalqb/ggja v0.11.3
@@ -12,9 +10,31 @@ require (
 
 require (
 	git.fractalqb.de/fractalqb/catch v0.3.0
-	git.fractalqb.de/fractalqb/gomk v0.11.6
-	git.fractalqb.de/fractalqb/qblog v0.14.3
-	golang.org/x/mod v0.15.0
+	git.fractalqb.de/fractalqb/gomk v0.11.17
+	golang.org/x/mod v0.24.0
+	golang.org/x/term v0.32.0
+	golang.org/x/time v0.11.0
 )
 
-require git.fractalqb.de/fractalqb/sllm/v3 v3.0.0-beta.2 // indirect
+require (
+	git.fractalqb.de/fractalqb/daq v0.11.0 // indirect
+	git.fractalqb.de/fractalqb/eloc v0.3.0 // indirect
+	git.fractalqb.de/fractalqb/qblog v0.14.6 // indirect
+	github.com/awnumar/memcall v0.4.0 // indirect
+	github.com/awnumar/memguard v0.22.5 // indirect
+	github.com/bits-and-blooms/bitset v1.22.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
+	github.com/rjeczalik/notify v0.9.3 // indirect
+	github.com/rogpeppe/go-internal v1.14.1 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+)
+
+require (
+	codeberg.org/fractalqb/gomklib v0.0.0-20250425190900-80b9280e6331
+	git.fractalqb.de/fractalqb/rqre v0.0.0-20250501120536-147bec4b5d09
+	git.fractalqb.de/fractalqb/sllm/v3 v3.0.0 // indirect
+	git.fractalqb.de/fractalqb/testerr v0.1.1
+	git.fractalqb.de/fractalqb/yacfg v0.9.0
+	github.com/ccding/go-stun/stun v0.0.0-20200514191101-4dc67bcdb029
+	golang.org/x/crypto v0.38.0
+)

@@ -19,7 +19,7 @@ func Example() {
 	// ...baz...
 }
 
-func ExampleCrsr() {
+func ExampleCursor() {
 	var tbl Data
 	crsr := tbl.At(0, 0).SetString("2-column heading", Span(2), Pad('.')).NextRow()
 	crsr.SetString("", SpanAll, Pad('-')).NextRow()
@@ -31,7 +31,7 @@ func ExampleCrsr() {
 	// col1    | col2
 }
 
-func ExampleStretchEmpty() {
+func ExampleSpan_stretchEmpty() {
 	var tbl Data
 	crsr := tbl.At(0, 0).
 		SetString("head").

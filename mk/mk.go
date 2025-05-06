@@ -1,71 +1,54 @@
 package main
 
 import (
-	"flag"
-	"os"
+	"fmt"
+	"log"
+	"path/filepath"
 
+	"codeberg.org/fractalqb/gomklib"
 	"git.fractalqb.de/fractalqb/gomk"
-	"git.fractalqb.de/fractalqb/qblog"
+	"git.fractalqb.de/fractalqb/gomk/gomkore"
+	"git.fractalqb.de/fractalqb/gomk/mkfs"
 )
 
-const version = "0.4.1"
+const version = "0.5.0"
 
-var (
-	cmds = []string{
-		"cmd/tikflt/tikflt",
-		"cmd/tikmig/tikmig",
-		"cmd/tiktak/tiktak",
-	}
-
-	goBuild = gomk.GoBuild{
-		TrimPath: true,
-		LDFlags:  []string{"-s", "-w"},
-		SetVars: []string{
-			"git.fractalqb.de/fractalqb/tiktak/cmd.Version=" + version,
-		},
-	}
-
-	log      = qblog.New(&qblog.DefaultConfig).Logger
-	writeDot bool
-)
-
-func flags() {
-	fLog := flag.String("log", "", "Set log level")
-	fInstall := flag.Bool("install", false, "Install commands")
-	flag.BoolVar(&writeDot, "dot", false, "Write project as graphviz dot file")
-	flag.Parse()
-	goBuild.Install = *fInstall
-	if *fLog != "" {
-		qblog.DefaultConfig.ParseFlag(*fLog)
-	}
+var cmds = []string{
+	"cmd/tikflt/tikflt",
+	"cmd/tikmig/tikmig",
+	"cmd/tiktak/tiktak",
+	"cmd/tikloc/tikloc",
 }
 
 func main() {
-	flags()
-
-	prj := gomk.NewProject(".")
-
-	gVulnchk := prj.Goal(gomk.Abstract("vulncheck")).
-		By(&gomk.GoVulncheck{Patterns: []string{"./..."}})
-
-	gTest := prj.Goal(gomk.Abstract("test")).
-		By(&gomk.GoTest{Pkgs: []string{"./..."}}, gVulnchk)
-
-	gCmds := prj.Goal(gomk.DirContent("cmds"))
-
-	for _, cmd := range cmds {
-		g := prj.Goal(gomk.File(cmd)).By(&goBuild, gTest)
-		gCmds.ImpliedBy(g)
+	build := gomklib.GoModule{Env: gomkore.DefaultEnv(nil)}
+	build.Env.Out = nil
+	build.Flags()
+	build.GoBuild().SetVars = []string{
+		"git.fractalqb.de/fractalqb/tiktak/cmd.Version=" + version,
 	}
 
-	if writeDot {
-		prj.WriteDot(os.Stdout)
-		return
+	prj := gomkore.NewProject("")
+
+	err := gomk.Edit(prj, func(prj gomk.ProjectEd) {
+		goAls := build.DefaultGolas(prj)
+		for _, cmd := range cmds {
+			prj.Goal(mkfs.File(cmd)).
+				By(build.GoBuild(),
+					goAls.Test,
+					prj.Goal(mkfs.DirList{Dir: filepath.Dir(cmd)}),
+				)
+		}
+	})
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	builder := gomk.Builder{Env: gomk.DefaultEnv()}
-	builder.Env.Log = log
-	if err := builder.Project(prj); err != nil {
-		log.Error(err.Error())
+	// Now, go for it…
+	err = build.Make(prj)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	fmt.Println("DONE") // just for Go test Example
 }
