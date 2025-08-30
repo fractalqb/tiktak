@@ -6,12 +6,12 @@ import (
 	"strconv"
 	"time"
 
+	"git.fractalqb.de/fractalqb/tetrta"
 	"git.fractalqb.de/fractalqb/tiktak"
-	"git.fractalqb.de/fractalqb/tiktak/tiktbl"
 )
 
 type Report struct {
-	Layout tiktbl.Writer
+	Layout tetrta.TableWriter
 	Fmts   Formats
 }
 

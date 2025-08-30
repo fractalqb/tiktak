@@ -5,8 +5,8 @@ import (
 	"io"
 	"time"
 
+	"git.fractalqb.de/fractalqb/tetrta"
 	"git.fractalqb.de/fractalqb/tiktak"
-	"git.fractalqb.de/fractalqb/tiktak/tiktbl"
 )
 
 type Sums struct {
@@ -32,7 +32,7 @@ func (sm *Sums) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		}
 	}
 
-	var tbl tiktbl.Data
+	var tbl tetrta.Table
 	var caption string
 	if total {
 		caption = fmt.Sprintf("SUMS: %s; Week %d [%s – %s]:",
@@ -45,74 +45,74 @@ func (sm *Sums) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		caption = fmt.Sprintf("SUMS: %s; Week %d:", sm.Fmts.Date(now), week)
 	}
 	crsr := tbl.At(0, 0).
-		SetString(caption, tiktbl.SpanAll, Bold()).NextRow().
-		SetString("", tiktbl.SpanAll, tiktbl.Pad('-')).NextRow().
-		With(tiktbl.Left).SetStrings("", "Task", "Today.", "Today/", "Week.", "Week/", "Month.", "Month/")
+		SetString(caption, tetrta.SpanAll, Bold()).NextRow().
+		SetString("", tetrta.SpanAll, tetrta.CellPad('-')).NextRow().
+		With(tetrta.Left).SetStrings("", "Task", "Today.", "Today/", "Week.", "Week/", "Month.", "Month/")
 	if total {
-		crsr.With(tiktbl.Left).SetStrings("Total.", "Total/")
+		crsr.With(tetrta.Left).SetStrings("Total.", "Total/")
 	}
 	crsr.NextRow().
-		SetString("", tiktbl.SpanAll, tiktbl.Pad('-')).NextRow()
+		SetString("", tetrta.SpanAll, tetrta.CellPad('-')).NextRow()
 
 	troot.Visit(false, func(t *tiktak.Task) error {
 		var markers string
 		tsums.Of(tl, t, sm.Fmts)
-		style1 := tiktbl.NoStyle()
+		style1 := tetrta.NoStyle()
 		if tsums.Open {
 			style1 = Bold()
 			markers = ">"
 		}
 		styleSub := style1
 		if t.Root() == t {
-			styleSub = tiktbl.AddStyles(styleSub, Underline())
+			styleSub = tetrta.AddStyles(styleSub, Underline())
 		}
 		crsr.With(style1).SetStrings(markers, t.String())
 
 		warn1 := hasWarning(tl, tsums.ds, tsums.de, tiktak.SameTask(t))
 		if tsums.Day1 == empty {
-			crsr.SetString(empty, tiktbl.Center)
+			crsr.SetString(empty, tetrta.Center)
 		} else if warn1 {
-			crsr.SetString(tsums.Day1, tiktbl.AddStyles(style1, Warn()))
+			crsr.SetString(tsums.Day1, tetrta.AddStyles(style1, Warn()))
 		} else {
 			crsr.SetString(tsums.Day1, style1)
 		}
 		warnSub := hasWarning(tl, tsums.ds, tsums.de, tiktak.IsATask(t))
 		if tsums.DaySub == empty {
-			crsr.SetString(empty, tiktbl.Center)
+			crsr.SetString(empty, tetrta.Center)
 		} else if warnSub {
-			crsr.SetString(tsums.DaySub, tiktbl.AddStyles(styleSub, Warn()))
+			crsr.SetString(tsums.DaySub, tetrta.AddStyles(styleSub, Warn()))
 		} else {
 			crsr.SetString(tsums.DaySub, styleSub)
 		}
 		warn1 = warn1 || hasWarning(tl, tsums.ws, tsums.we, tiktak.SameTask(t))
 		if tsums.Week1 == empty {
-			crsr.SetString(empty, tiktbl.Center)
+			crsr.SetString(empty, tetrta.Center)
 		} else if warn1 {
-			crsr.SetString(tsums.Week1, tiktbl.AddStyles(style1, Warn()))
+			crsr.SetString(tsums.Week1, tetrta.AddStyles(style1, Warn()))
 		} else {
 			crsr.SetString(tsums.Week1, style1)
 		}
 		warnSub = warnSub || hasWarning(tl, tsums.ws, tsums.we, tiktak.IsATask(t))
 		if tsums.WeekSub == empty {
-			crsr.SetString(empty, tiktbl.Center)
+			crsr.SetString(empty, tetrta.Center)
 		} else if warnSub {
-			crsr.SetString(tsums.WeekSub, tiktbl.AddStyles(styleSub, Warn()))
+			crsr.SetString(tsums.WeekSub, tetrta.AddStyles(styleSub, Warn()))
 		} else {
 			crsr.SetString(tsums.WeekSub, styleSub)
 		}
 		warn1 = warn1 || hasWarning(tl, tsums.ms, tsums.me, tiktak.SameTask(t))
 		if tsums.Month1 == empty {
-			crsr.SetString(empty, tiktbl.Center)
+			crsr.SetString(empty, tetrta.Center)
 		} else if warn1 {
-			crsr.SetString(tsums.Month1, tiktbl.AddStyles(style1, Warn()))
+			crsr.SetString(tsums.Month1, tetrta.AddStyles(style1, Warn()))
 		} else {
 			crsr.SetString(tsums.Month1, style1)
 		}
 		warnSub = warnSub || hasWarning(tl, tsums.ms, tsums.me, tiktak.IsATask(t))
 		if tsums.MonthSub == empty {
-			crsr.SetString(empty, tiktbl.Center)
+			crsr.SetString(empty, tetrta.Center)
 		} else if warnSub {
-			crsr.SetString(tsums.MonthSub, tiktbl.AddStyles(styleSub, Warn()))
+			crsr.SetString(tsums.MonthSub, tetrta.AddStyles(styleSub, Warn()))
 		} else {
 			crsr.SetString(tsums.MonthSub, styleSub)
 		}
@@ -120,18 +120,18 @@ func (sm *Sums) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 			warn1 = warn1 || hasWarning(tl, ts, te, tiktak.SameTask(t))
 			d, _, _ := tl.Duration(ts, te, now, tiktak.SameTask(t))
 			if d == 0 {
-				crsr.SetString(empty, tiktbl.Center)
+				crsr.SetString(empty, tetrta.Center)
 			} else if warn1 {
-				crsr.SetString(sm.Fmts.Duration(d), tiktbl.AddStyles(style1, Warn()))
+				crsr.SetString(sm.Fmts.Duration(d), tetrta.AddStyles(style1, Warn()))
 			} else {
 				crsr.SetString(sm.Fmts.Duration(d), style1)
 			}
 			warnSub = warnSub || hasWarning(tl, ts, te, tiktak.IsATask(t))
 			d, _, _ = tl.Duration(ts, te, now, tiktak.IsATask(t))
 			if d == 0 {
-				crsr.SetString(empty, tiktbl.Center)
+				crsr.SetString(empty, tetrta.Center)
 			} else if warnSub {
-				crsr.SetString(sm.Fmts.Duration(d), tiktbl.AddStyles(styleSub, Warn()))
+				crsr.SetString(sm.Fmts.Duration(d), tetrta.AddStyles(styleSub, Warn()))
 			} else {
 				crsr.SetString(sm.Fmts.Duration(d), styleSub)
 			}
@@ -141,7 +141,7 @@ func (sm *Sums) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		return nil
 	})
 	for i := 2; i < tbl.Columns(); i++ {
-		tbl.Align(tiktbl.Right, i)
+		tbl.Align(tetrta.Right, i)
 	}
 	sm.Layout.Write(w, &tbl)
 }

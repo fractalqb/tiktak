@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"git.fractalqb.de/fractalqb/tetrta"
 	"git.fractalqb.de/fractalqb/tiktak"
 	"git.fractalqb.de/fractalqb/tiktak/cmd"
 	"git.fractalqb.de/fractalqb/tiktak/internal/reports"
-	"git.fractalqb.de/fractalqb/tiktak/tiktbl"
 )
 
 type Config struct {
@@ -53,8 +53,8 @@ var (
 
 	mode        = ReportMode
 	file, query string
-	formats                   = reports.MinutesFmts
-	tableWr     tiktbl.Writer = &tiktbl.Terminal{CellPad: "  "}
+	formats                        = reports.MinutesFmts
+	tableWr     tetrta.TableWriter = &tetrta.Terminal{CellPad: "  "}
 
 	now      time.Time
 	rootTask tiktak.Task
@@ -219,7 +219,7 @@ func showInfos() {
 		fmt.Println(file)
 	case "m", "match":
 		read()
-		var tbl tiktbl.Data
+		var tbl tetrta.Table
 		if cfg.Verbose {
 			crsr := tbl.At(0, 0).With(reports.Bold()).
 				SetStrings("Match", "Task", "Title").

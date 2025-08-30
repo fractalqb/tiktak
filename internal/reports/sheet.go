@@ -5,8 +5,8 @@ import (
 	"io"
 	"time"
 
+	"git.fractalqb.de/fractalqb/tetrta"
 	"git.fractalqb.de/fractalqb/tiktak"
-	"git.fractalqb.de/fractalqb/tiktak/tiktbl"
 )
 
 type Sheet struct {
@@ -57,27 +57,27 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 	end := tiktak.StartDay(tl[len(tl)-1].When(), 1, loc)
 	day := tiktak.StartDay(tl[0].When(), 0, loc)
 
-	var tbl tiktbl.Data
+	var tbl tetrta.Table
 	crsr := tbl.At(0, 0).
 		SetString(fmt.Sprintf("SHEET: %s – %s",
 			fmts.Date(day),
 			fmts.Date(tiktak.StartDay(end, -1, loc)),
-		), tiktbl.SpanAll, Bold()).NextRow().
-		SetString("", tiktbl.SpanAll, tiktbl.Pad('-')).NextRow().
-		With(tiktbl.Left, Bold()).SetStrings("Day", "Start", "Stop", "Break", "Work")
+		), tetrta.SpanAll, Bold()).NextRow().
+		SetString("", tetrta.SpanAll, tetrta.CellPad('-')).NextRow().
+		With(tetrta.Left, Bold()).SetStrings("Day", "Start", "Stop", "Break", "Work")
 	for _, t := range sht.Tasks {
-		crsr.SetString(t.String(), tiktbl.Left, Bold())
+		crsr.SetString(t.String(), tetrta.Left, Bold())
 	}
 	if len(sht.Tasks) > 0 {
-		crsr.SetString("Rest", tiktbl.Left, Bold())
+		crsr.SetString("Rest", tetrta.Left, Bold())
 	}
 	weekSep := func(t time.Time) {
 		_, w := t.ISOWeek()
 		crsr.SetString(
 			fmt.Sprintf(" Week %d ", w),
-			tiktbl.SpanAll,
-			tiktbl.Center,
-			tiktbl.Pad('-'),
+			tetrta.SpanAll,
+			tetrta.Center,
+			tetrta.CellPad('-'),
 			Muted(),
 		).NextRow()
 	}
@@ -109,13 +109,13 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 				crsr.SetString(fmts.Duration(td), Muted())
 				tsumw[i] = 0
 			} else {
-				crsr.SetString("-", tiktbl.Center, Muted())
+				crsr.SetString("-", tetrta.Center, Muted())
 			}
 		}
 		if weekRest > 0 {
 			crsr.SetString(fmts.Duration(weekRest), Muted())
 		} else if len(tsumw) > 0 {
-			crsr.SetString("-", tiktbl.Center, Muted())
+			crsr.SetString("-", tetrta.Center, Muted())
 		}
 		crsr.NextRow()
 		weekWork, weekBreak, weekRest, weekCount = 0, 0, 0, 0
@@ -126,7 +126,7 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 			weekSep(day)
 		}
 
-		style := tiktbl.NoStyle()
+		style := tetrta.NoStyle()
 		next := tiktak.StartDay(day, 1, loc)
 		dayWork, ds, de := tl.Duration(day, next, now, tiktak.AnyTask)
 		if dayWork == 0 {
@@ -149,7 +149,7 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		}
 
 		if hasWarning(tl, day, next, tiktak.AnyTask) {
-			crsr.SetString(fmts.ShortDate(day), tiktbl.AddStyles(style, Warn()))
+			crsr.SetString(fmts.ShortDate(day), tetrta.AddStyles(style, Warn()))
 		} else {
 			crsr.SetString(fmts.ShortDate(day), style)
 		}
@@ -158,7 +158,7 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		if dayBreak > 0 {
 			crsr.SetString(fmts.Duration(dayBreak), style)
 		} else {
-			crsr.SetString("-", style, tiktbl.Center)
+			crsr.SetString("-", style, tetrta.Center)
 		}
 		crsr.SetString(fmts.Duration(dayWork), style)
 
@@ -181,7 +181,7 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 				return false
 			})
 			if td == 0 {
-				crsr.SetString("-", style, tiktbl.Center)
+				crsr.SetString("-", style, tetrta.Center)
 			} else {
 				if warns {
 					crsr.SetString(fmts.Duration(td), style, Warn())
@@ -221,26 +221,26 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 	if stopCount > 0 {
 		stopAvg = tiktak.Clock{Dur: stops / time.Duration(stopCount), Location: now.Location()}
 	}
-	crsr.SetString("", tiktbl.SpanAll, tiktbl.Pad('-')).NextRow().
-		SetString("Average:", tiktbl.Right, Bold()).
+	crsr.SetString("", tetrta.SpanAll, tetrta.CellPad('-')).NextRow().
+		SetString("Average:", tetrta.Right, Bold()).
 		SetStrings(fmts.Clock(startAvg.On(now)), fmts.Clock(stopAvg.On(now))).
 		SetStrings(fmts.Duration(breakSum/time.Duration(count)), fmts.Duration(workSum/time.Duration(count)))
 	for _, ts := range tsums {
 		if ts.n > 0 {
 			crsr.SetString(fmts.Duration(ts.d / time.Duration(ts.n)))
 		} else {
-			crsr.SetString("-", tiktbl.Center)
+			crsr.SetString("-", tetrta.Center)
 		}
 	}
 	if len(tsums) > 0 {
 		if count > 0 {
 			crsr.SetString(fmts.Duration(restSum / time.Duration(count)))
 		} else {
-			crsr.SetString("-", tiktbl.Center)
+			crsr.SetString("-", tetrta.Center)
 		}
 	}
 	crsr.NextRow().
-		SetString("Count:", tiktbl.Right, Bold()).Set(count).
+		SetString("Count:", tetrta.Right, Bold()).Set(count).
 		SetString("Sum:", Bold()).
 		With(Underline()).SetStrings(fmts.Duration(breakSum), fmts.Duration(workSum))
 	for _, ts := range tsums {
@@ -250,12 +250,12 @@ func (sht *Sheet) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		if count > 0 {
 			crsr.SetString(fmts.Duration(restSum), Underline())
 		} else {
-			crsr.SetString("-", tiktbl.Center)
+			crsr.SetString("-", tetrta.Center)
 		}
 	}
 
 	for i := 1; i < tbl.Columns(); i++ {
-		tbl.Align(tiktbl.Right, i)
+		tbl.Align(tetrta.Right, i)
 	}
 	sht.Layout.Write(w, &tbl)
 }

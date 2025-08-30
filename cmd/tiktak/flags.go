@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"git.fractalqb.de/fractalqb/tetrta"
 	"git.fractalqb.de/fractalqb/tiktak/cmd"
 	"git.fractalqb.de/fractalqb/tiktak/internal/reports"
-	"git.fractalqb.de/fractalqb/tiktak/tiktbl"
 	"gopkg.in/yaml.v3"
 )
 
@@ -135,9 +135,9 @@ creates a file and +<file> appends to a file.`,
 	switch cfg.TikTak.Report.Layout {
 	case "":
 	case "term":
-		tableWr = &tiktbl.Terminal{CellPad: "  "}
+		tableWr = &tetrta.Terminal{CellPad: "  "}
 	case "csv":
-		tableWr = &tiktbl.CSV{FS: ";", SkipEmptyLines: true}
+		tableWr = &tetrta.CSV{FS: ";", SkipEmptyLines: true}
 	default:
 		log.Fatalf("invalid report layout: '%s'", cfg.TikTak.Report.Layout)
 	}

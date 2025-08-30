@@ -3,7 +3,7 @@ package reports
 import (
 	"os"
 
-	"git.fractalqb.de/fractalqb/tiktak/tiktbl"
+	"git.fractalqb.de/fractalqb/tetrta"
 	"github.com/TwiN/go-color"
 )
 
@@ -20,18 +20,18 @@ func init() {
 	}
 }
 
-func Bold() tiktbl.Styler {
-	return tiktbl.Style(func(s string) string { return color.InBold(s) })
+func Bold() tetrta.Styler {
+	return tetrta.Style(func(s string) string { return color.InBold(s) })
 }
 
-func Underline() tiktbl.Styler {
-	return tiktbl.Style(func(s string) string { return color.InUnderline(s) })
+func Underline() tetrta.Styler {
+	return tetrta.Style(func(s string) string { return color.InUnderline(s) })
 }
 
-func Muted() tiktbl.Styler {
-	return tiktbl.Style(func(s string) string { return color.InCyan(s) })
+func Muted() tetrta.Styler {
+	return tetrta.Style(func(s string) string { return color.InCyan(s) })
 }
 
-func Warn() tiktbl.Styler {
-	return tiktbl.Style(func(s string) string { return color.OverYellow(s) })
+func Warn() tetrta.Styler {
+	return tetrta.Style(func(s string) string { return color.OverYellow(s) })
 }

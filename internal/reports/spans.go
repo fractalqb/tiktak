@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"git.fractalqb.de/fractalqb/tetrta"
 	"git.fractalqb.de/fractalqb/tiktak"
-	"git.fractalqb.de/fractalqb/tiktak/tiktbl"
 )
 
 type Spans struct {
@@ -23,7 +23,7 @@ func (spans *Spans) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 	}
 	today := tiktak.DateOf(now)
 	var (
-		tbl tiktbl.Data
+		tbl tetrta.Table
 		day tiktak.Date
 	)
 	crsr := tbl.At(0, 0)
@@ -35,11 +35,11 @@ func (spans *Spans) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		if sday.Compare(&day) != 0 {
 			style := Underline()
 			if sday.Compare(&today) == 0 {
-				style = tiktbl.Styles{Bold(), Underline()}
+				style = tetrta.Styles{Bold(), Underline()}
 			}
 			_, week := s.When().ISOWeek()
 			d := fmt.Sprintf("%s; Week %d", fmts.Date(s.When()), week)
-			crsr.SetString(d, tiktbl.SpanAll, style).NextRow()
+			crsr.SetString(d, tetrta.SpanAll, style).NextRow()
 			day = sday
 		}
 		end := "..."
@@ -50,10 +50,10 @@ func (spans *Spans) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		} else {
 			end = fmts.Clock(ns.When())
 			dur = fmts.Duration(ns.When().Sub(s.When()))
-			style = tiktbl.NoStyle()
+			style = tetrta.NoStyle()
 		}
 		if s.Task() == nil {
-			style = tiktbl.AddStyles(style, Muted())
+			style = tetrta.AddStyles(style, Muted())
 		}
 		var flags []rune
 		for _, note := range s.Notes() {
@@ -66,10 +66,10 @@ func (spans *Spans) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 		}
 		if len(flags) > 0 {
 			sort.Slice(flags, func(i, j int) bool { return flags[i] < flags[j] })
-			style = tiktbl.AddStyles(style, Warn())
+			style = tetrta.AddStyles(style, Warn())
 		}
 		if spans.Verbose {
-			crsr.SetString(SpanID(i), tiktbl.Right)
+			crsr.SetString(SpanID(i), tetrta.Right)
 		}
 		crsr = crsr.With(style).SetStrings(
 			string(flags),
@@ -85,15 +85,15 @@ func (spans *Spans) Write(w io.Writer, tl tiktak.TimeLine, now time.Time) {
 			for _, note := range s.Notes() {
 				crsr.SetString("")
 				if note.Sym == 0 {
-					crsr.SetString(note.Text, tiktbl.SpanAll, Underline())
+					crsr.SetString(note.Text, tetrta.SpanAll, Underline())
 				} else {
-					crsr.SetString(fmt.Sprintf("%c %s", note.Sym, note.Text), tiktbl.SpanAll, Underline())
+					crsr.SetString(fmt.Sprintf("%c %s", note.Sym, note.Text), tetrta.SpanAll, Underline())
 				}
 				crsr.NextRow()
 			}
 		}
 	}
-	tbl.Align(tiktbl.Left, 0)
-	tbl.Align(tiktbl.Right, 3)
+	tbl.Align(tetrta.Left, 0)
+	tbl.Align(tetrta.Right, 3)
 	spans.Layout.Write(w, &tbl)
 }
