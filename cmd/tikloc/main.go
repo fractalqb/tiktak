@@ -29,9 +29,10 @@ var (
 func flags() {
 	flag.StringVar(&cfg.Loc, "loc", cfg.Loc, "Fix location name")
 	flag.StringVar(&cfg.Addr, "addr", cfg.Addr, "Server listen address")
+	noTerm := flag.Bool("no-term", false, "Do not read yasec passphrase from terminal")
 	flag.Parse()
 
-	yasecInit()
+	yasecInit(*noTerm)
 	lkey := mustRet(cfg.KeyHex.Open())
 	defer lkey.Destroy()
 	must(key.FromHex(lkey.String()))

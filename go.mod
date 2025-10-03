@@ -12,9 +12,8 @@ require (
 	git.fractalqb.de/fractalqb/catch v0.3.0
 	git.fractalqb.de/fractalqb/gomk v0.11.17
 	git.fractalqb.de/fractalqb/tetrta v0.1.0
-	golang.org/x/mod v0.27.0
-	golang.org/x/term v0.34.0
-	golang.org/x/time v0.12.0
+	golang.org/x/mod v0.28.0
+	golang.org/x/time v0.13.0
 )
 
 require (
@@ -27,7 +26,7 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/rjeczalik/notify v0.9.3 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
 )
 
 require (
@@ -35,7 +34,7 @@ require (
 	git.fractalqb.de/fractalqb/rqre v0.0.0-20250501120536-147bec4b5d09
 	git.fractalqb.de/fractalqb/sllm/v3 v3.0.0 // indirect
 	git.fractalqb.de/fractalqb/testerr v0.1.1
-	git.fractalqb.de/fractalqb/yacfg v0.9.0
+	git.fractalqb.de/fractalqb/yacfg v0.9.2
 	github.com/ccding/go-stun/stun v0.0.0-20200514191101-4dc67bcdb029
-	golang.org/x/crypto v0.41.0
+	golang.org/x/crypto v0.42.0
 )

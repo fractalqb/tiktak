@@ -21,6 +21,11 @@ import (
 
 type NetLoc struct {
 	checks []netLocCheck
+	opts   netLocOpts
+}
+
+type netLocOpts struct {
+	debug bool
 }
 
 func (f *NetLoc) Flags(args []string) (_ []string, err error) {
@@ -30,6 +35,7 @@ func (f *NetLoc) Flags(args []string) (_ []string, err error) {
 		fmt.Fprintln(w, "netloc checks: http, stun, tikloc")
 		flags.PrintDefaults()
 	}
+	flags.BoolVar(&f.opts.debug, "debug", f.opts.debug, "Log debug messages")
 	if err := flags.Parse(args); err != nil {
 		return args, err
 	}
@@ -46,7 +52,7 @@ CHECK_LOOP:
 				return args, fmt.Errorf("netloc http: %w", err)
 			}
 		case "tikloc":
-			if chk, args, err = newNetLocTik(args[1:]); err != nil {
+			if chk, args, err = newNetLocTik(&f.opts, args[1:]); err != nil {
 				return args, fmt.Errorf("netloc tikloc: %w", err)
 			}
 		default:
@@ -147,14 +153,15 @@ func (chk netLocSTUN) Location() string {
 }
 
 type netLocTik struct {
+	opts    *netLocOpts
 	addr    string
 	key     protocol.Key
 	nms     map[string]string
 	timeout time.Duration
 }
 
-func newNetLocTik(args []string) (netLocTik, []string, error) {
-	chk := netLocTik{timeout: 500 * time.Millisecond}
+func newNetLocTik(opts *netLocOpts, args []string) (netLocTik, []string, error) {
+	chk := netLocTik{opts: opts, timeout: 500 * time.Millisecond}
 	flags := flag.NewFlagSet("netloc-tikloc", flag.ContinueOnError)
 	flags.StringVar(&chk.addr, "addr", chk.addr, "Tikloc address")
 	hexkey := flags.String("key", "", "Hex of 32 byte encryption key")
@@ -196,7 +203,9 @@ func (chk netLocTik) Location() string {
 	}
 	n, err := conn.Read(data[:1024])
 	if err != nil {
-		log.Println(logPrefix, err)
+		if chk.opts.debug {
+			log.Println(logPrefix, err)
+		}
 		return ""
 	}
 	re := protocol.Response{Key: &chk.key}
